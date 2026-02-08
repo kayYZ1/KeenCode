@@ -1,5 +1,6 @@
 import { run } from "@/tui/render/index.ts";
-import { Box, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
+import { Box, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
+import { initDevTools } from "@/tui/dev/index.ts";
 import { useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 
@@ -43,7 +44,7 @@ function Agent() {
 
 	return (
 		<Box flex flexDirection="column" padding={1} gap={1}>
-			<Box flex flexDirection="column" gap={1} padding={1}>
+			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{visibleMessages.map((msg) => (
 					<Box flexDirection="row" gap={1}>
 						<Text color={msg.role === "user" ? "green" : "blue"} bold>
@@ -62,7 +63,7 @@ function Agent() {
 						</Text>
 					</Box>
 				)}
-			</Box>
+			</ScrollArea>
 
 			<Box border="single" borderLabel={mode.value} padding={1}>
 				<TextInput
@@ -77,11 +78,12 @@ function Agent() {
 
 			<Box>
 				<Text color="gray" italic>
-					Enter to send • i/Esc to toggle mode • Ctrl+C to exit
+					Enter to send • PageUp/PageDown to scroll • i/Esc to toggle mode • Ctrl+C to exit
 				</Text>
 			</Box>
 		</Box>
 	);
 }
 
+initDevTools();
 run(() => <Agent />);

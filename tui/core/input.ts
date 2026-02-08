@@ -98,6 +98,10 @@ class InputManager {
 					return { key: "end", ctrl: false, meta: false, shift: false };
 				case "3~":
 					return { key: "delete", ctrl: false, meta: false, shift: false };
+				case "5~":
+					return { key: "pageup", ctrl: false, meta: false, shift: false };
+				case "6~":
+					return { key: "pagedown", ctrl: false, meta: false, shift: false };
 			}
 		}
 

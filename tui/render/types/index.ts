@@ -130,6 +130,27 @@ export interface MarkdownProps extends BaseProps {
 	flex?: number | boolean;
 }
 
+export interface ScrollAreaProps extends BoxProps {
+	/** Current scroll offset (controlled by useScrollArea hook) */
+	scrollOffset?: number;
+	/** Whether the scroll area is focused for keyboard input */
+	focused?: boolean;
+	/** Show a scrollbar indicator */
+	scrollbar?: boolean;
+	/** Number of lines to scroll per step (default: 1) */
+	scrollStep?: number;
+	/** Callback when scroll metrics are computed during render */
+	onMetrics?: (metrics: ScrollMetrics) => void;
+	/** Callback to clamp scroll offset to valid range */
+	onScrollOffsetChange?: (offset: number) => void;
+}
+
+export interface ScrollMetrics {
+	viewportHeight: number;
+	contentHeight: number;
+	maxScroll: number;
+}
+
 /**
  * Element registry - single source of truth for all element types.
  * Extend via module augmentation to add custom elements.
@@ -139,6 +160,7 @@ export interface ElementRegistry {
 	text: { props: TextProps; instance: BaseInstance<"text", TextProps> };
 	textInput: { props: TextInputProps; instance: BaseInstance<"textInput", TextInputProps> };
 	spinner: { props: SpinnerProps; instance: BaseInstance<"spinner", SpinnerProps> };
+	scrollArea: { props: ScrollAreaProps; instance: BaseInstance<"scrollArea", ScrollAreaProps> };
 }
 
 /** Base instance structure - all elements extend this */
@@ -166,6 +188,7 @@ export type BoxInstance = InstanceOfType<"box">;
 export type TextInstance = InstanceOfType<"text">;
 export type TextInputInstance = InstanceOfType<"textInput">;
 export type SpinnerInstance = InstanceOfType<"spinner">;
+export type ScrollAreaInstance = InstanceOfType<"scrollArea">;
 
 /** Element type constants */
 export const ElementType = {
@@ -173,4 +196,5 @@ export const ElementType = {
 	TEXT: "text",
 	TEXT_INPUT: "textInput",
 	SPINNER: "spinner",
+	SCROLL_AREA: "scrollArea",
 } as const satisfies Record<string, ElementTypeName>;

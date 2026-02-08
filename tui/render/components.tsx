@@ -1,7 +1,15 @@
 import { toAnsi } from "@/tui/core/primitives/color.ts";
 import { type MarkdownSegment, parseMarkdown } from "@/tui/core/primitives/parse-markdown.ts";
+import { useScrollArea } from "./hooks/scroll-area.ts";
 import { useSignal, useSignalEffect } from "./hooks/signals.ts";
-import type { BoxProps, MarkdownProps, SpinnerProps, TextInputProps, TextProps } from "./types/index.ts";
+import type {
+	BoxProps,
+	MarkdownProps,
+	ScrollAreaProps,
+	SpinnerProps,
+	TextInputProps,
+	TextProps,
+} from "./types/index.ts";
 
 const SPINNER_FRAME_COUNT = 10;
 
@@ -49,6 +57,19 @@ function formatSegment(segment: MarkdownSegment): string {
 	if (segment.italic) text = `\x1b[3m${text}\x1b[23m`;
 	if (segment.strikethrough) text = `\x1b[9m${text}\x1b[29m`;
 	return text;
+}
+
+export function ScrollArea(props: ScrollAreaProps & { autoScroll?: boolean }) {
+	const { focused, scrollStep, autoScroll, ...rest } = props;
+	const scroll = useScrollArea({ focused, scrollStep, autoScroll });
+	return (
+		<scrollArea
+			{...rest}
+			scrollOffset={scroll.scrollOffset.value}
+			onMetrics={scroll.onMetrics}
+			onScrollOffsetChange={scroll.onScrollOffsetChange}
+		/>
+	);
 }
 
 export function Markdown(props: MarkdownProps) {

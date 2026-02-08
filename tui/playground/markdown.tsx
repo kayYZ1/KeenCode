@@ -1,5 +1,6 @@
 import { run } from "@/tui/render/index.ts";
 import { Box, Markdown, Text } from "@/tui/render/components.tsx";
+import { initDevTools } from "@/tui/dev/index.ts";
 
 const DEMO_MARKDOWN = `# Markdown Component Demo
 
@@ -53,4 +54,5 @@ function MarkdownDemo() {
 	);
 }
 
+initDevTools();
 run(() => <MarkdownDemo />);

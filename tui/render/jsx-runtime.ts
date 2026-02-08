@@ -1,4 +1,4 @@
-import type { BoxProps, SpinnerProps, TextInputProps, TextProps } from "./types/index.ts";
+import type { BoxProps, ScrollAreaProps, SpinnerProps, TextInputProps, TextProps } from "./types/index.ts";
 
 export interface VNode<P = any> {
 	type: string | ((props: P) => VNode);
@@ -26,6 +26,7 @@ declare global {
 			text: TextProps;
 			textInput: TextInputProps;
 			spinner: SpinnerProps;
+			scrollArea: ScrollAreaProps;
 		}
 		type Element = VNode;
 		interface ElementChildrenAttribute {

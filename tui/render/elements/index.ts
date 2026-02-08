@@ -2,6 +2,7 @@ import { type BaseInstance, type ElementHandler, ElementType } from "../types/in
 import { BoxElement, BoxLayout } from "./box.ts";
 import { SpinnerElement, SpinnerLayout } from "./spinner.ts";
 import { TextElement, TextLayout } from "./text.ts";
+import { ScrollAreaElement, ScrollAreaLayout } from "./scroll-area.ts";
 import { TextInputElement, TextInputLayout } from "./text-input.ts";
 
 /** Layout function applies Yoga properties to an instance */
@@ -74,4 +75,10 @@ registerElement(ElementType.SPINNER, {
 	hasChildren: false,
 });
 
-export { BoxElement, SpinnerElement, TextElement, TextInputElement };
+registerElement(ElementType.SCROLL_AREA, {
+	render: ScrollAreaElement,
+	layout: ScrollAreaLayout,
+	hasChildren: true,
+});
+
+export { BoxElement, ScrollAreaElement, SpinnerElement, TextElement, TextInputElement };

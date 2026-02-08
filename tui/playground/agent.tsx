@@ -44,7 +44,7 @@ function Agent() {
 
 	return (
 		<Box flex flexDirection="column" padding={1} gap={1}>
-			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused>
+			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{visibleMessages.map((msg) => (
 					<Box flexDirection="row" gap={1}>
 						<Text color={msg.role === "user" ? "green" : "blue"} bold>

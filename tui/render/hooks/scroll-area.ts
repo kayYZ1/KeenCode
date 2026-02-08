@@ -9,7 +9,9 @@ export interface ScrollAreaState {
 	onScrollOffsetChange: (offset: number) => void;
 }
 
-export function useScrollArea(options?: { focused?: boolean; scrollStep?: number }): ScrollAreaState {
+export function useScrollArea(
+	options?: { focused?: boolean; scrollStep?: number; autoScroll?: boolean },
+): ScrollAreaState {
 	const scrollOffset = useSignal(0);
 	const viewportHeight = useSignal(0);
 	const maxScroll = useSignal(0);
@@ -42,8 +44,12 @@ export function useScrollArea(options?: { focused?: boolean; scrollStep?: number
 	return {
 		scrollOffset,
 		onMetrics: (metrics: ScrollMetrics) => {
+			const wasAtBottom = scrollOffset.value >= maxScroll.value;
 			viewportHeight.value = metrics.viewportHeight;
 			maxScroll.value = metrics.maxScroll;
+			if (options?.autoScroll && wasAtBottom) {
+				scrollOffset.value = metrics.maxScroll;
+			}
 		},
 		onScrollOffsetChange: (offset: number) => {
 			scrollOffset.value = offset;

@@ -89,8 +89,21 @@ export const ScrollAreaElement: ElementHandler<ScrollAreaInstance> = (instance, 
 		instance.props.onScrollOffsetChange?.(scrollOffset);
 	}
 
-	const childPositions = instance.children.flatMap((child) => context.renderInstance(child, x, y - scrollOffset));
-	const clipped = childPositions.filter((pos) => pos.y >= clipTop && pos.y <= clipBottom);
+	const clipped: Position[] = [];
+	for (const child of instance.children) {
+		const childTop = Math.round(child.yogaNode.getComputedTop()) - scrollOffset;
+		const childHeight = Math.round(child.yogaNode.getComputedHeight());
+		const childBottom = childTop + childHeight - 1;
+
+		if (childBottom < 0 || childTop >= viewportHeight) continue;
+
+		const childPositions = context.renderInstance(child, x, y - scrollOffset);
+		for (const pos of childPositions) {
+			if (pos.y >= clipTop && pos.y <= clipBottom) {
+				clipped.push(pos);
+			}
+		}
+	}
 
 	const scrollbarPositions: Position[] = [];
 	if (instance.props.scrollbar && contentHeight > viewportHeight) {

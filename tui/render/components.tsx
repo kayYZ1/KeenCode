@@ -59,9 +59,9 @@ function formatSegment(segment: MarkdownSegment): string {
 	return text;
 }
 
-export function ScrollArea(props: ScrollAreaProps) {
-	const { focused, scrollStep, ...rest } = props;
-	const scroll = useScrollArea({ focused, scrollStep });
+export function ScrollArea(props: ScrollAreaProps & { autoScroll?: boolean }) {
+	const { focused, scrollStep, autoScroll, ...rest } = props;
+	const scroll = useScrollArea({ focused, scrollStep, autoScroll });
 	return (
 		<scrollArea
 			{...rest}

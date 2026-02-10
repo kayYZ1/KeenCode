@@ -68,6 +68,16 @@ export interface BoxProps extends BaseProps {
 	borderLabel?: string;
 	/** Color of the border label */
 	borderLabelColor?: string;
+	/** Position type for overlay behavior */
+	position?: "relative" | "absolute";
+	/** Top edge offset (for absolute positioning) */
+	top?: number;
+	/** left edge offset (for absolute positioning) */
+	left?: number;
+	/** Right edge offset (for absolute positioning) */
+	right?: number;
+	/** Bottom edge offset (for absolute positioning) */
+	bottom?: number;
 }
 
 export interface TextProps extends BaseProps {

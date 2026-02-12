@@ -72,6 +72,8 @@ export function ScrollArea(props: ScrollAreaProps & { autoScroll?: boolean }) {
 	);
 }
 
+export { CommandPalette } from "./components/command-palette.tsx";
+
 export function Markdown(props: MarkdownProps) {
 	const content = childrenToString(props.children);
 	const lines = parseMarkdown(content);

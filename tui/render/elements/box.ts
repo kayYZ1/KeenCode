@@ -41,6 +41,11 @@ export const BoxLayout: LayoutHandler<BoxInstance> = (instance) => {
 	if (props.height) yogaNode.setHeight(props.height);
 	if (props.width) yogaNode.setWidth(props.width);
 	if (props.border) yogaNode.setBorder(Y.EDGE_ALL, 1);
+	yogaNode.setPositionType(props.position === "absolute" ? Y.POSITION_TYPE_ABSOLUTE : Y.POSITION_TYPE_RELATIVE);
+	if (props.top !== undefined) yogaNode.setPosition(Y.EDGE_TOP, props.top);
+	if (props.left !== undefined) yogaNode.setPosition(Y.EDGE_LEFT, props.left);
+	if (props.right !== undefined) yogaNode.setPosition(Y.EDGE_RIGHT, props.right);
+	if (props.bottom !== undefined) yogaNode.setPosition(Y.EDGE_BOTTOM, props.bottom);
 };
 
 export const BoxElement: ElementHandler<BoxInstance> = (instance, context): Position[] => {

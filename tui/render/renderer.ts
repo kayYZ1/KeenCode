@@ -10,6 +10,13 @@ import { cleanupEffects, nextComponent, resetHooks } from "./hooks/signals.ts";
 import type { VNode } from "./jsx-runtime.ts";
 import type { Instance, Position, RenderContext } from "./types/index.ts";
 
+interface ReconcileCtx {
+	oldChildren: Instance[];
+	nextIndex: number;
+	oldKeyMap: Map<string | number, number>;
+	consumed: Set<number>;
+}
+
 export class Renderer {
 	terminal: Terminal;
 	rootInstance: Instance | null = null;
@@ -37,11 +44,17 @@ export class Renderer {
 		instance.yogaNode.free();
 	}
 
-	createInstanceTree(vnode: VNode): Instance {
+	// --- Mount path: create fresh instances from VNodes ---
+
+	mountInstance(vnode: VNode): Instance {
 		if (typeof vnode.type === "function") {
 			nextComponent();
 			const childVNode = (vnode.type as any)(vnode.props);
-			return this.createInstanceTree(childVNode);
+			return this.mountInstance(childVNode);
+		}
+
+		if (vnode.type === "fragment") {
+			return this.mountInstance({ type: ElementType.BOX, props: { children: vnode.props.children } });
 		}
 
 		const type = typeof vnode.type === "string" ? vnode.type : ElementType.BOX;
@@ -61,38 +74,224 @@ export class Renderer {
 				? vnode.props.children
 				: [vnode.props.children].filter(Boolean);
 
-			const children = rawChildren.flat(Infinity);
-
-			for (const child of children) {
-				if (typeof child === "string" || typeof child === "number") {
-					const textElement = getElement(ElementType.TEXT);
-					const childInstance: Instance = {
-						type: ElementType.TEXT,
-						props: { children: child.toString() },
-						children: [],
-						yogaNode: Y.Node.create(),
-					};
-					textElement.layout(childInstance);
-					instance.children.push(childInstance);
-					instance.yogaNode.insertChild(childInstance.yogaNode, instance.children.length - 1);
-				} else if (child && typeof child === "object" && child.type) {
-					const childInstance = this.createInstanceTree(child);
-					instance.children.push(childInstance);
-					instance.yogaNode.insertChild(childInstance.yogaNode, instance.children.length - 1);
-				}
+			for (const child of rawChildren.flat(Infinity)) {
+				this.mountChild(child, instance);
 			}
 		}
 
 		return instance;
 	}
 
-	commitRender(vnode: VNode) {
-		if (this.rootInstance) {
-			this.freeYogaNodes(this.rootInstance);
+	private mountChild(child: unknown, parent: Instance) {
+		if (typeof child === "string" || typeof child === "number") {
+			const textElement = getElement(ElementType.TEXT);
+			const childInstance: Instance = {
+				type: ElementType.TEXT,
+				props: { children: child.toString() },
+				children: [],
+				yogaNode: Y.Node.create(),
+			};
+			textElement.layout(childInstance);
+			parent.children.push(childInstance);
+			parent.yogaNode.insertChild(childInstance.yogaNode, parent.children.length - 1);
+			return;
 		}
+
+		if (!child || typeof child !== "object" || !(child as VNode).type) return;
+
+		let vnode = child as VNode;
+		let componentType: unknown;
+		while (typeof vnode.type === "function") {
+			if (!componentType) componentType = vnode.type;
+			nextComponent();
+			vnode = (vnode.type as any)(vnode.props);
+		}
+
+		if (vnode.type === "fragment") {
+			const rawChildren = Array.isArray(vnode.props.children)
+				? vnode.props.children
+				: [vnode.props.children].filter(Boolean);
+			for (const c of rawChildren.flat(Infinity)) {
+				this.mountChild(c, parent);
+			}
+			return;
+		}
+
+		const childInstance = this.mountInstance(vnode);
+		if (componentType) childInstance.componentType = componentType;
+		parent.children.push(childInstance);
+		parent.yogaNode.insertChild(childInstance.yogaNode, parent.children.length - 1);
+	}
+
+	// --- Reconcile path: diff VNode against existing Instance tree ---
+
+	reconcile(vnode: VNode, existing: Instance | null): Instance {
+		if (typeof vnode.type === "function") {
+			nextComponent();
+			const childVNode = (vnode.type as any)(vnode.props);
+			return this.reconcile(childVNode, existing);
+		}
+
+		if (vnode.type === "fragment") {
+			return this.reconcile(
+				{ type: ElementType.BOX, props: { children: vnode.props.children } },
+				existing,
+			);
+		}
+
+		const type = typeof vnode.type === "string" ? vnode.type : ElementType.BOX;
+
+		if (!existing || existing.type !== type) {
+			if (existing) this.freeYogaNodes(existing);
+			return this.mountInstance(vnode);
+		}
+
+		existing.props = vnode.props;
+		const element = getElement(type);
+		element.layout(existing);
+
+		if (element.hasChildren) {
+			this.reconcileChildren(vnode, existing);
+		}
+
+		return existing;
+	}
+
+	private reconcileChildren(parentVNode: VNode, parentInstance: Instance) {
+		const rawChildren = Array.isArray(parentVNode.props.children)
+			? parentVNode.props.children
+			: [parentVNode.props.children].filter(Boolean);
+
+		const oldChildren = parentInstance.children;
+		const newChildren: Instance[] = [];
+
+		const oldKeyMap = new Map<string | number, number>();
+		for (let i = 0; i < oldChildren.length; i++) {
+			const key = oldChildren[i].props.key;
+			if (key !== undefined && key !== null) {
+				oldKeyMap.set(key, i);
+			}
+		}
+
+		const consumed = new Set<number>();
+		const ctx: ReconcileCtx = { oldChildren, nextIndex: 0, oldKeyMap, consumed };
+
+		this.resolveAndReconcile(rawChildren.flat(Infinity), ctx, newChildren);
+
+		for (let i = 0; i < oldChildren.length; i++) {
+			if (!consumed.has(i)) {
+				this.freeYogaNodes(oldChildren[i]);
+			}
+		}
+
+		parentInstance.children = newChildren;
+
+		const childCount = parentInstance.yogaNode.getChildCount();
+		for (let i = childCount - 1; i >= 0; i--) {
+			parentInstance.yogaNode.removeChild(parentInstance.yogaNode.getChild(i));
+		}
+		for (let i = 0; i < newChildren.length; i++) {
+			parentInstance.yogaNode.insertChild(newChildren[i].yogaNode, i);
+		}
+	}
+
+	private consumeOldChild(ctx: ReconcileCtx, key: string | number | undefined | null): Instance | null {
+		if (key !== undefined && key !== null && ctx.oldKeyMap.has(key)) {
+			const idx = ctx.oldKeyMap.get(key)!;
+			if (!ctx.consumed.has(idx)) {
+				ctx.consumed.add(idx);
+				return ctx.oldChildren[idx];
+			}
+		}
+
+		while (ctx.nextIndex < ctx.oldChildren.length && ctx.consumed.has(ctx.nextIndex)) {
+			ctx.nextIndex++;
+		}
+		if (ctx.nextIndex < ctx.oldChildren.length) {
+			const idx = ctx.nextIndex;
+			ctx.consumed.add(idx);
+			ctx.nextIndex++;
+			return ctx.oldChildren[idx];
+		}
+
+		return null;
+	}
+
+	private resolveAndReconcile(
+		children: unknown[],
+		ctx: ReconcileCtx,
+		newChildren: Instance[],
+	) {
+		for (const child of children) {
+			if (typeof child === "string" || typeof child === "number") {
+				const oldChild = this.consumeOldChild(ctx, undefined);
+				const text = child.toString();
+
+				if (oldChild && oldChild.type === ElementType.TEXT) {
+					const oldText = oldChild.props.children;
+					oldChild.props = { children: text };
+					const element = getElement(ElementType.TEXT);
+					element.layout(oldChild);
+					if (oldText !== text && oldChild.props.height === undefined) {
+						oldChild.yogaNode.markDirty();
+					}
+					newChildren.push(oldChild);
+				} else {
+					if (oldChild) this.freeYogaNodes(oldChild);
+					const textElement = getElement(ElementType.TEXT);
+					const instance: Instance = {
+						type: ElementType.TEXT,
+						props: { children: text },
+						children: [],
+						yogaNode: Y.Node.create(),
+					} as Instance;
+					textElement.layout(instance);
+					newChildren.push(instance);
+				}
+			} else if (child && typeof child === "object" && (child as VNode).type) {
+				let vnode = child as VNode;
+				let componentType: unknown;
+				while (typeof vnode.type === "function") {
+					if (!componentType) componentType = vnode.type;
+					nextComponent();
+					vnode = (vnode.type as any)(vnode.props);
+				}
+
+				if (vnode.type === "fragment") {
+					const fragChildren = Array.isArray(vnode.props.children)
+						? vnode.props.children
+						: [vnode.props.children].filter(Boolean);
+					this.resolveAndReconcile(fragChildren.flat(Infinity), ctx, newChildren);
+				} else {
+					const key = vnode.props.key;
+					const oldChild = this.consumeOldChild(ctx, key);
+
+					if (componentType && oldChild && oldChild.componentType !== componentType) {
+						this.freeYogaNodes(oldChild);
+						const inst = this.mountInstance(vnode);
+						inst.componentType = componentType;
+						newChildren.push(inst);
+					} else {
+						const inst = this.reconcile(vnode, oldChild);
+						if (componentType) inst.componentType = componentType;
+						newChildren.push(inst);
+					}
+				}
+			}
+		}
+	}
+
+	// --- Commit: reconcile or mount, then layout + paint ---
+
+	commitRender(vnode: VNode) {
 		clearPendingCursor();
 
-		this.rootInstance = this.createInstanceTree(vnode);
+		if (this.rootInstance) {
+			this.rootInstance = this.reconcile(vnode, this.rootInstance);
+		} else {
+			this.rootInstance = this.mountInstance(vnode);
+		}
+
 		this.rootInstance.yogaNode.setWidth(this.terminal.width);
 		this.rootInstance.yogaNode.setHeight(this.terminal.height);
 		this.rootInstance.yogaNode.calculateLayout(this.terminal.width, this.terminal.height, Y.DIRECTION_LTR);

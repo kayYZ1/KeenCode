@@ -39,6 +39,8 @@ export type ElementHandler<T extends Instance = Instance> = (instance: T, contex
 export interface BaseProps {
 	/** Child elements */
 	children?: Children;
+	/** Unique key for reconciliation */
+	key?: string | number;
 }
 
 export interface BoxProps extends BaseProps {
@@ -68,6 +70,8 @@ export interface BoxProps extends BaseProps {
 	borderLabel?: string;
 	/** Color of the border label */
 	borderLabelColor?: string;
+	/** Background color of the box */
+	bgColor?: string;
 	/** Position type for overlay behavior */
 	position?: "relative" | "absolute";
 	/** Top edge offset (for absolute positioning) */
@@ -83,6 +87,8 @@ export interface BoxProps extends BaseProps {
 export interface TextProps extends BaseProps {
 	/** Text color */
 	color?: string;
+	/** Background color */
+	bgColor?: string;
 	/** Whether text is bold */
 	bold?: boolean;
 	/** Whether text is italic */
@@ -179,6 +185,8 @@ export interface BaseInstance<T extends string = string, P extends BaseProps = B
 	props: P;
 	children: Instance[];
 	yogaNode: YogaNode;
+	/** The function component that produced this instance (for reconciliation identity) */
+	componentType?: unknown;
 }
 
 /** All valid element type strings */

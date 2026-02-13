@@ -48,3 +48,48 @@ export function toAnsi(color: string): string | null {
 
 	return null;
 }
+
+const BG_BASIC_COLORS: Record<string, string> = {
+	black: "\x1b[40m",
+	red: "\x1b[41m",
+	green: "\x1b[42m",
+	yellow: "\x1b[43m",
+	blue: "\x1b[44m",
+	magenta: "\x1b[45m",
+	cyan: "\x1b[46m",
+	white: "\x1b[47m",
+	gray: "\x1b[100m",
+	grey: "\x1b[100m",
+};
+
+const BG_BRIGHT_COLORS: Record<string, string> = {
+	brightblack: "\x1b[100m",
+	brightred: "\x1b[101m",
+	brightgreen: "\x1b[102m",
+	brightyellow: "\x1b[103m",
+	brightblue: "\x1b[104m",
+	brightmagenta: "\x1b[105m",
+	brightcyan: "\x1b[106m",
+	brightwhite: "\x1b[107m",
+};
+
+export function toBgAnsi(color: string): string | null {
+	const lower = color.toLowerCase();
+
+	if (BG_BASIC_COLORS[lower]) {
+		return BG_BASIC_COLORS[lower];
+	}
+
+	if (BG_BRIGHT_COLORS[lower]) {
+		return BG_BRIGHT_COLORS[lower];
+	}
+
+	if (color.startsWith("#")) {
+		const rgb = hexToRgb(color);
+		if (rgb) {
+			return `\x1b[48;2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
+		}
+	}
+
+	return null;
+}

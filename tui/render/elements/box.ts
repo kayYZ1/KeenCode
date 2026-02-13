@@ -1,4 +1,5 @@
 import Y from "yoga-layout";
+import { toBgAnsi } from "@/tui/core/primitives/color.ts";
 import { drawBox } from "@/tui/core/primitives/draw-box.ts";
 import type { BoxInstance, ElementHandler, Position } from "../types/index.ts";
 import type { LayoutHandler } from "./index.ts";
@@ -27,35 +28,64 @@ const ALIGN_ITEMS_MAP = {
 	baseline: Y.ALIGN_BASELINE,
 } as const;
 
+const FLEX_WRAP_MAP = {
+	wrap: Y.WRAP_WRAP,
+	"wrap-reverse": Y.WRAP_WRAP_REVERSE,
+	nowrap: Y.WRAP_NO_WRAP,
+} as const;
+
 export const BoxLayout: LayoutHandler<BoxInstance> = (instance) => {
 	const { yogaNode, props } = instance;
-	if (props.flex) yogaNode.setFlex(Number(props.flex));
-	if (props.flexDirection) yogaNode.setFlexDirection(FLEX_DIRECTION_MAP[props.flexDirection]);
-	if (props.justifyContent) yogaNode.setJustifyContent(JUSTIFY_CONTENT_MAP[props.justifyContent]);
-	if (props.alignItems) yogaNode.setAlignItems(ALIGN_ITEMS_MAP[props.alignItems]);
+	yogaNode.setFlex(props.flex ? Number(props.flex) : undefined);
+	yogaNode.setFlexDirection(props.flexDirection ? FLEX_DIRECTION_MAP[props.flexDirection] : Y.FLEX_DIRECTION_COLUMN);
+	yogaNode.setJustifyContent(props.justifyContent ? JUSTIFY_CONTENT_MAP[props.justifyContent] : Y.JUSTIFY_FLEX_START);
+	yogaNode.setAlignItems(props.alignItems ? ALIGN_ITEMS_MAP[props.alignItems] : Y.ALIGN_STRETCH);
+	yogaNode.setGap(Y.GUTTER_ROW, undefined);
+	yogaNode.setGap(Y.GUTTER_COLUMN, undefined);
 	if (props.gap) {
 		const isRow = props.flexDirection === "row" || props.flexDirection === "row-reverse";
 		yogaNode.setGap(isRow ? Y.GUTTER_COLUMN : Y.GUTTER_ROW, props.gap);
 	}
-	if (props.padding) yogaNode.setPadding(Y.EDGE_ALL, props.padding);
-	if (props.height) yogaNode.setHeight(props.height);
-	if (props.width) yogaNode.setWidth(props.width);
-	if (props.border) yogaNode.setBorder(Y.EDGE_ALL, 1);
+	yogaNode.setPadding(Y.EDGE_ALL, props.padding ?? undefined);
+	if (props.width !== undefined) yogaNode.setWidth(props.width);
+	else yogaNode.setWidthAuto();
+	if (props.height !== undefined) yogaNode.setHeight(props.height);
+	else yogaNode.setHeightAuto();
+	yogaNode.setBorder(Y.EDGE_ALL, props.border ? 1 : undefined);
+	yogaNode.setFlexWrap(props.flexWrap ? FLEX_WRAP_MAP[props.flexWrap] : Y.WRAP_NO_WRAP);
 	yogaNode.setPositionType(props.position === "absolute" ? Y.POSITION_TYPE_ABSOLUTE : Y.POSITION_TYPE_RELATIVE);
 	if (props.top !== undefined) yogaNode.setPosition(Y.EDGE_TOP, props.top);
+	else yogaNode.setPositionAuto(Y.EDGE_TOP);
 	if (props.left !== undefined) yogaNode.setPosition(Y.EDGE_LEFT, props.left);
+	else yogaNode.setPositionAuto(Y.EDGE_LEFT);
 	if (props.right !== undefined) yogaNode.setPosition(Y.EDGE_RIGHT, props.right);
+	else yogaNode.setPositionAuto(Y.EDGE_RIGHT);
 	if (props.bottom !== undefined) yogaNode.setPosition(Y.EDGE_BOTTOM, props.bottom);
+	else yogaNode.setPositionAuto(Y.EDGE_BOTTOM);
 };
 
 export const BoxElement: ElementHandler<BoxInstance> = (instance, context): Position[] => {
 	const x = context.parentX + Math.round(instance.yogaNode.getComputedLeft());
 	const y = context.parentY + Math.round(instance.yogaNode.getComputedTop());
+	const w = Math.round(instance.yogaNode.getComputedWidth());
+	const h = Math.round(instance.yogaNode.getComputedHeight());
 	const positions: Position[] = [];
 
+	if (instance.props.bgColor) {
+		const bg = toBgAnsi(instance.props.bgColor);
+		if (bg) {
+			const borderW = instance.props.border ? 1 : 0;
+			for (let row = borderW; row < h - borderW; row++) {
+				positions.push({
+					x: x + borderW,
+					y: y + row,
+					text: `${bg}${" ".repeat(w - borderW * 2)}\x1b[49m`,
+				});
+			}
+		}
+	}
+
 	if (instance.props.border) {
-		const w = Math.round(instance.yogaNode.getComputedWidth());
-		const h = Math.round(instance.yogaNode.getComputedHeight());
 		positions.push(
 			...drawBox(
 				x,
@@ -66,6 +96,7 @@ export const BoxElement: ElementHandler<BoxInstance> = (instance, context): Posi
 				instance.props.borderColor,
 				instance.props.borderLabel,
 				instance.props.borderLabelColor,
+				instance.props.bgColor,
 			),
 		);
 	}

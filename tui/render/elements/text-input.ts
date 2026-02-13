@@ -4,14 +4,15 @@ import type { CursorStyle, ElementHandler, Position, TextInputInstance } from ".
 import type { LayoutHandler } from "./index.ts";
 
 export const TextInputLayout: LayoutHandler<TextInputInstance> = (instance) => {
-	if (instance.props.width) {
-		instance.yogaNode.setWidth(instance.props.width);
-	}
+	if (instance.props.width !== undefined) instance.yogaNode.setWidth(instance.props.width);
+	else instance.yogaNode.setWidthAuto();
 
 	const height = instance.props.height;
 	if (height !== undefined) {
+		instance.yogaNode.unsetMeasureFunc();
 		instance.yogaNode.setHeight(height);
 	} else {
+		instance.yogaNode.setHeightAuto();
 		instance.yogaNode.setMeasureFunc((width) => {
 			const value = instance.props.value || instance.props.placeholder || "";
 			const lines = wrapText(value, Math.floor(width));

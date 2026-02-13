@@ -1,5 +1,5 @@
 import type { Instance } from "@/tui/render/types/index.ts";
-import { toAnsi } from "./color.ts";
+import { toAnsi, toBgAnsi } from "./color.ts";
 
 function childrenToString(children: unknown): string {
 	if (children == null || children === false) return "";
@@ -14,10 +14,16 @@ export const formatText = (instance: Instance): string => {
 
 	let text = childrenToString(instance.props.children);
 
+	if (typeof instance.props.bgColor === "string") {
+		const bg = toBgAnsi(instance.props.bgColor);
+		if (bg) {
+			text = `${bg}${text}\x1b[49m`;
+		}
+	}
 	if (typeof instance.props.color === "string") {
 		const ansi = toAnsi(instance.props.color);
 		if (ansi) {
-			text = `${ansi}${text}\x1b[0m`;
+			text = `${ansi}${text}\x1b[39m`;
 		}
 	}
 	if (instance.props.bold) text = `\x1b[1m${text}\x1b[22m`;

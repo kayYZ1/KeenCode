@@ -56,12 +56,12 @@ function Agent() {
 					</Box>
 				))}
 				{isLoading.value && (
-					<Box flexDirection="row" gap={1} alignItems="center">
+					<>
 						<Spinner color="cyan" />
 						<Text color="gray" italic>
 							Thinking...
 						</Text>
-					</Box>
+					</>
 				)}
 			</ScrollArea>
 

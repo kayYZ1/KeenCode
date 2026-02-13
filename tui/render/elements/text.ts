@@ -14,12 +14,15 @@ function childrenToString(children: Children | undefined): string {
 export const TextLayout: LayoutHandler<TextInstance> = (instance) => {
 	const { width, height, flex } = instance.props;
 
-	if (flex) instance.yogaNode.setFlex(Number(flex));
-	if (width) instance.yogaNode.setWidth(width);
+	instance.yogaNode.setFlex(flex ? Number(flex) : undefined);
+	if (width !== undefined) instance.yogaNode.setWidth(width);
+	else instance.yogaNode.setWidthAuto();
 
 	if (height !== undefined) {
+		instance.yogaNode.unsetMeasureFunc();
 		instance.yogaNode.setHeight(height);
 	} else {
+		instance.yogaNode.setHeightAuto();
 		instance.yogaNode.setMeasureFunc((availableWidth) => {
 			const text = childrenToString(instance.props.children);
 			const w = Math.floor(availableWidth);

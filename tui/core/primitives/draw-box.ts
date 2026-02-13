@@ -1,5 +1,5 @@
 import type { Position } from "@/tui/render/types/index.ts";
-import { toAnsi } from "./color.ts";
+import { toAnsi, toBgAnsi } from "./color.ts";
 
 export type BorderStyle = "single" | "double" | "round" | "bold" | "dash" | "block";
 
@@ -21,6 +21,7 @@ export interface DrawBoxOptions {
 	color?: string;
 	label?: string;
 	labelColor?: string;
+	bgColor?: string;
 }
 
 export const drawBox = (
@@ -32,6 +33,7 @@ export const drawBox = (
 	color?: string,
 	label?: string,
 	labelColor?: string,
+	bgColor?: string,
 ): Position[] => {
 	if (w < 2 || h < 2) return [];
 
@@ -40,12 +42,17 @@ export const drawBox = (
 
 	const wrap = (char?: string, overrideColor?: string) => {
 		if (!char) return "";
-
+		let result = char;
 		const c = overrideColor ?? color;
-		if (!c) return char;
-
-		const ansi = toAnsi(c);
-		return ansi ? `${ansi}${char}\x1b[0m` : char;
+		if (c) {
+			const ansi = toAnsi(c);
+			if (ansi) result = `${ansi}${result}\x1b[39m`;
+		}
+		if (bgColor) {
+			const bg = toBgAnsi(bgColor);
+			if (bg) result = `${bg}${result}\x1b[49m`;
+		}
+		return result;
 	};
 
 	positions.push({ x, y, text: wrap(chars.tl) });

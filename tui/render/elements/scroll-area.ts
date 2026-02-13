@@ -29,21 +29,26 @@ const ALIGN_ITEMS_MAP = {
 
 export const ScrollAreaLayout: LayoutHandler<ScrollAreaInstance> = (instance) => {
 	const { yogaNode, props } = instance;
-	if (props.flex) yogaNode.setFlex(Number(props.flex));
-	if (props.flexDirection) yogaNode.setFlexDirection(FLEX_DIRECTION_MAP[props.flexDirection]);
-	if (props.justifyContent) yogaNode.setJustifyContent(JUSTIFY_CONTENT_MAP[props.justifyContent]);
-	if (props.alignItems) yogaNode.setAlignItems(ALIGN_ITEMS_MAP[props.alignItems]);
+	yogaNode.setFlex(props.flex ? Number(props.flex) : undefined);
+	yogaNode.setFlexDirection(props.flexDirection ? FLEX_DIRECTION_MAP[props.flexDirection] : Y.FLEX_DIRECTION_COLUMN);
+	yogaNode.setJustifyContent(props.justifyContent ? JUSTIFY_CONTENT_MAP[props.justifyContent] : Y.JUSTIFY_FLEX_START);
+	yogaNode.setAlignItems(props.alignItems ? ALIGN_ITEMS_MAP[props.alignItems] : Y.ALIGN_STRETCH);
+	yogaNode.setGap(Y.GUTTER_ROW, undefined);
+	yogaNode.setGap(Y.GUTTER_COLUMN, undefined);
 	if (props.gap) {
 		const isRow = props.flexDirection === "row" || props.flexDirection === "row-reverse";
 		yogaNode.setGap(isRow ? Y.GUTTER_COLUMN : Y.GUTTER_ROW, props.gap);
 	}
-	if (props.padding) yogaNode.setPadding(Y.EDGE_ALL, props.padding);
-	if (props.height) yogaNode.setHeight(props.height);
-	if (props.width) yogaNode.setWidth(props.width);
-	if (props.border) yogaNode.setBorder(Y.EDGE_ALL, 1);
+	const basePadding = props.padding ?? 0;
+	yogaNode.setPadding(Y.EDGE_ALL, basePadding || undefined);
+	if (props.width !== undefined) yogaNode.setWidth(props.width);
+	else yogaNode.setWidthAuto();
+	if (props.height !== undefined) yogaNode.setHeight(props.height);
+	else yogaNode.setHeightAuto();
+	yogaNode.setBorder(Y.EDGE_ALL, props.border ? 1 : undefined);
 	yogaNode.setOverflow(Y.OVERFLOW_SCROLL);
 	if (props.scrollbar) {
-		yogaNode.setPadding(Y.EDGE_RIGHT, (props.padding ?? 0) + 1);
+		yogaNode.setPadding(Y.EDGE_RIGHT, basePadding + 1);
 	}
 };
 
@@ -65,9 +70,10 @@ export const ScrollAreaElement: ElementHandler<ScrollAreaInstance> = (instance, 
 				instance.props.borderColor,
 				instance.props.borderLabel,
 				instance.props.borderLabelColor,
-			),
-		);
-	}
+				instance.props.bgColor,
+				),
+				);
+				}
 
 	const borderW = instance.props.border ? 1 : 0;
 	const clipTop = y + borderW;

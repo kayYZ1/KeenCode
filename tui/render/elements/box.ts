@@ -97,9 +97,9 @@ export const BoxElement: ElementHandler<BoxInstance> = (instance, context): Posi
 				instance.props.borderLabel,
 				instance.props.borderLabelColor,
 				instance.props.bgColor,
-				),
-				);
-				}
+			),
+		);
+	}
 
 	positions.push(...instance.children.flatMap((child) => context.renderInstance(child, x, y)));
 

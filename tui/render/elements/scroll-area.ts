@@ -71,9 +71,9 @@ export const ScrollAreaElement: ElementHandler<ScrollAreaInstance> = (instance, 
 				instance.props.borderLabel,
 				instance.props.borderLabelColor,
 				instance.props.bgColor,
-				),
-				);
-				}
+			),
+		);
+	}
 
 	const borderW = instance.props.border ? 1 : 0;
 	const clipTop = y + borderW;

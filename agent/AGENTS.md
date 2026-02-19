@@ -1,6 +1,6 @@
 # AGENTS.md - Agent
 
-The actual agent implementation: UI, configuration, and application entry point.
+The application entry point: ties together the TUI, core agent logic, and API packages.
 
 ## Architecture
 

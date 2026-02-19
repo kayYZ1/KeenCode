@@ -7,31 +7,52 @@ for rendering.
 
 ```
 tui/
-├── core/                 # Low-level terminal handling
-│   ├── terminal.ts       # Terminal buffer, rendering, cursor control
-│   ├── input.ts          # Keyboard input handling
-│   └── primitives/       # Drawing primitives
-│       ├── draw-box.ts   # Box/border rendering with styles
-│       ├── format-text.ts# Text styling (bold, italic, colors)
-│       └── wrap-text.ts  # Text wrapping utilities
-├── render/               # JSX rendering layer
-│   ├── renderer.ts       # Custom renderer with Yoga layout
-│   ├── components.tsx    # Box, Text, TextInput components
-│   ├── jsx-runtime.ts    # Custom JSX runtime
-│   ├── hooks/            # React-like hooks
-│   │   ├── signals.ts    # useSignal, useSignalEffect
-│   │   ├── text-input.ts # useTextInput hook
-│   │   ├── vim-input.ts  # useVimInput hook
-│   │   └── text-utils.ts # Shared text editing utilities
-│   ├── elements/         # Element handlers for rendering
-│   │   ├── index.ts      # Element registry
-│   │   ├── box.ts        # Box element renderer
-│   │   ├── text.ts       # Text element renderer
-│   │   └── text-input.ts # TextInput element renderer
+├── core/                       # Low-level terminal handling
+│   ├── index.ts                # Re-exports Terminal
+│   ├── terminal.ts             # Terminal buffer, rendering, cursor control
+│   ├── input.ts                # Keyboard input handling
+│   └── primitives/             # Drawing primitives
+│       ├── color.ts            # Color parsing and ANSI conversion
+│       ├── draw-box.ts         # Box/border rendering with styles
+│       ├── format-text.ts      # Text styling (bold, italic, colors)
+│       ├── parse-markdown.ts   # Markdown-to-segments parser
+│       └── wrap-text.ts        # Text wrapping utilities
+├── dev/
+│   └── index.ts                # Dev helpers (exit handlers, terminal registration)
+├── render/                     # JSX rendering layer
+│   ├── renderer.ts             # Custom renderer with Yoga layout and reconciliation
+│   ├── components.tsx          # Box, Text, TextInput, Spinner, ScrollArea, Markdown
+│   ├── index.ts                # Public render API re-exports
+│   ├── jsx-runtime.ts          # Custom JSX runtime
+│   ├── jsx-dev-runtime.ts      # JSX dev runtime
+│   ├── hooks/                  # React-like hooks
+│   │   ├── index.ts            # Re-exports all hooks
+│   │   ├── signals.ts          # useSignal, useSignalEffect, hook lifecycle
+│   │   ├── text-input.ts       # useTextInput hook (with vim mode support)
+│   │   ├── text-utils.ts       # Shared text editing utilities (TextState)
+│   │   ├── scroll-area.ts      # useScrollArea hook
+│   │   └── command-palette.ts  # useCommandPalette hook
+│   ├── elements/               # Element handlers for rendering
+│   │   ├── index.ts            # Element registry (registerElement, getElement)
+│   │   ├── box.ts              # Box element renderer + layout
+│   │   ├── text.ts             # Text element renderer + layout
+│   │   ├── text-input.ts       # TextInput element renderer + layout
+│   │   ├── spinner.ts          # Spinner element renderer + layout
+│   │   └── scroll-area.ts      # ScrollArea element renderer + layout
+│   ├── components/
+│   │   └── command-palette.tsx  # CommandPalette component
 │   └── types/
-│       └── index.ts      # TypeScript type definitions
-└── playground/           # Example apps
-    └── text-input.tsx    # Text input demo
+│       └── index.ts            # TypeScript type definitions, ElementRegistry, props
+├── playground/                 # Example apps
+│   ├── agent.tsx               # Agent UI demo
+│   ├── command-palette.tsx     # Command palette demo
+│   ├── layout.tsx              # Flexbox layout demo
+│   ├── markdown.tsx            # Markdown rendering demo
+│   ├── scroll-area.tsx         # Scroll area demo
+│   ├── spinner.tsx             # Spinner demo
+│   ├── text-input.tsx          # Text input demo
+│   └── text-styling.tsx        # Text styling demo
+└── tests/                      # Tests
 ```
 
 ## Key Concepts
@@ -39,11 +60,12 @@ tui/
 ### Rendering Pipeline
 
 1. **VNode Creation**: JSX compiles to custom `jsx()` calls returning VNodes
-2. **Instance Tree**: `Renderer.createInstanceTree()` converts VNodes to Instance objects with Yoga nodes
-3. **Layout Calculation**: Yoga calculates positions using flexbox algorithm
-4. **Element Rendering**: Element handlers convert instances to Position arrays
-5. **Terminal Output**: `Terminal.render()` writes positions to a double-buffered character grid
-6. **Differential Flush**: Only changed cells are written to stdout
+2. **Instance Tree**: `Renderer.mountInstance()` converts VNodes to Instance objects with Yoga nodes
+3. **Reconciliation**: `Renderer` reconciles old and new instance trees (key-based + positional matching)
+4. **Layout Calculation**: Yoga calculates positions using flexbox algorithm
+5. **Element Rendering**: Element handlers convert instances to Position arrays
+6. **Terminal Output**: `Terminal.render()` writes positions to a double-buffered character grid
+7. **Differential Flush**: Only changed cells are written to stdout
 
 ### Core Classes
 
@@ -58,7 +80,8 @@ tui/
 
 - Bridges VNodes to terminal output
 - Creates Yoga layout tree from component tree
-- Uses `@preact/signals-core` effect() for reactive re-rendering
+- Reconciles instance trees for efficient updates (key-based and positional)
+- Uses `@preact/signals-core` `effect()` for reactive re-rendering
 - Methods: `render(createVNode)`, `unmount()`
 
 ### Signals Integration
@@ -68,31 +91,60 @@ The framework uses `@preact/signals-core` for reactivity:
 - `useSignal(initialValue)` - Creates a persistent signal (cached by component/hook index)
 - `useSignalEffect(fn)` - Runs effect when signals change, with cleanup support
 - Signals trigger automatic re-renders when `.value` changes
+- Hook lifecycle managed via `resetHooks()`, `nextComponent()`, `cleanupEffects()`
 
 ### Layout System (Yoga)
 
 Supports flexbox properties on `<Box>`:
 
 - `flex`, `flexDirection` (row/column/row-reverse/column-reverse)
-- `justifyContent`, `alignItems`
+- `justifyContent` (flex-start/center/flex-end/space-between/space-around/space-evenly)
+- `alignItems` (flex-start/center/flex-end/stretch/baseline)
+- `flexWrap` (wrap/wrap-reverse/nowrap)
 - `gap`, `padding`
 - `width`, `height`
-- `border` (single/double/round/bold/dash/block), `borderColor`, `borderLabel`
+- `border` (single/double/round/bold/dash/block), `borderColor`, `borderLabel`, `borderLabelColor`
+- `bgColor`
+- `position` (relative/absolute), `top`, `left`, `right`, `bottom`
 
 ### Styling
 
 Text styling via `<Text>` props:
 
 - `color` - Basic colors (red, blue, etc.), bright variants, or hex codes (#ff0000)
+- `bgColor` - Background color
 - `bold`, `italic`, `underline`, `strikethrough`
+- `width`, `height`, `flex` - Layout constraints
+
+## Components
+
+All exported from `render/components.tsx`:
+
+- **`Box`** - Flexbox container with border, padding, and positioning support
+- **`Text`** - Styled text with color, bold, italic, underline, strikethrough
+- **`TextInput`** - Text input field with cursor, placeholder, and vim mode cursor styles (`block`/`bar`)
+- **`Spinner`** - Animated spinner (default 80ms interval, 10 frames)
+- **`ScrollArea`** - Scrollable container (extends BoxProps) with `autoScroll`, `scrollbar`, and `scrollStep`
+- **`Markdown`** - Renders markdown content as styled Text lines via `parseMarkdown()`
+- **`CommandPalette`** - Re-exported from `components/command-palette.tsx`
+
+## Hooks
+
+All exported from `render/hooks/index.ts`:
+
+- **`useSignal(initialValue)`** - Persistent signal, cached per component/hook index
+- **`useSignalEffect(fn)`** - Reactive effect with cleanup support
+- **`useTextInput(options)`** - Text input state management with optional vim mode (`VimMode: "NORMAL" | "INSERT"`)
+- **`useScrollArea(options)`** - Scroll state management with keyboard input and auto-scroll
+- **`useCommandPalette(options)`** - Command palette state (items, filtering, selection)
 
 ## Adding New Features
 
 ### New Component Property
 
 1. Add prop to type in `render/types/index.ts`
-2. Handle in `Renderer.applyBoxLayout()` or `createInstanceTree()`
-3. Handle in element handler (`render/elements/box.ts`, `render/elements/text.ts`, etc.)
+2. Handle in the element's layout function (e.g., `BoxLayout` in `render/elements/box.ts`)
+3. Handle in the element's render function (e.g., `BoxElement` in `render/elements/box.ts`)
 
 ### New Primitive
 
@@ -102,25 +154,32 @@ Text styling via `<Text>` props:
 
 ### New Element Type
 
-1. Add type to `Instance` union in `render/types/index.ts`
-2. Create element handler in `render/elements/`
-3. Register in `render/elements/index.ts`
-4. Add to JSX IntrinsicElements in `render/jsx-runtime.ts`
+1. Add props interface in `render/types/index.ts`
+2. Add entry to `ElementRegistry` interface in `render/types/index.ts`
+3. Add constant to `ElementType` object
+4. Create element handler file in `render/elements/` (export both `*Element` render and `*Layout` functions)
+5. Register in `render/elements/index.ts` via `registerElement()`
+6. Add component wrapper in `render/components.tsx`
+7. Add to JSX IntrinsicElements in `render/jsx-runtime.ts`
 
 ## Code Patterns
 
+- Each element has two handlers: `*Layout` (applies Yoga properties) and `*Element` (renders to positions)
 - Element handlers are pure functions: `(instance, context) => Position[]`
-- Hooks use global index tracking (reset per render cycle)
+- Layout handlers are pure functions: `(instance) => void` (mutates Yoga node)
+- Elements are registered via `registerElement(type, { render, layout, hasChildren })` in `render/elements/index.ts`
+- Hooks use global index tracking (reset per render cycle via `resetHooks()`)
 - Use `toAnsi(colorName)` from `@/tui/core/primitives/color.ts` for color conversion
 - All coordinates are integer character positions
-- Text editing logic is centralized in `hooks/text-utils.ts`
+- Text editing logic is centralized in `hooks/text-utils.ts` (exports `TextState` and operations like `insertChar`, `deleteBackward`, `moveCursor`, etc.)
 
 ## Naming Conventions
 
-- **Element type strings**: camelCase (e.g., `"textInput"`, `"selectInput"`)
+- **Element type strings**: camelCase (e.g., `"textInput"`, `"scrollArea"`)
+- **ElementType constants**: UPPER_SNAKE_CASE (e.g., `ElementType.TEXT_INPUT`, `ElementType.SCROLL_AREA`)
 - **File names**: kebab-case (e.g., `text-input.ts`, `draw-box.ts`)
-- **Functions/variables**: camelCase (e.g., `textInputLayout`, `getElement`)
-- **Types/Interfaces**: PascalCase (e.g., `TextInputProps`, `ElementHandler`)
-- **Constants**: UPPER_SNAKE_CASE for enum-like objects (e.g., `ElementType.TEXT_INPUT`)
-- **JSX intrinsic elements**: camelCase (e.g., `<textInput />`) - internal use only
-- **Component wrappers**: PascalCase (e.g., `<TextInput />`, `<Box />`) - what users import
+- **Functions/variables**: camelCase (e.g., `BoxLayout`, `getElement`)
+- **Types/Interfaces**: PascalCase (e.g., `TextInputProps`, `ElementHandler`, `BoxInstance`)
+- **JSX intrinsic elements**: camelCase (e.g., `<textInput />`, `<scrollArea />`) - internal use only
+- **Component wrappers**: PascalCase (e.g., `<TextInput />`, `<ScrollArea />`) - what users import
+- **Element handler exports**: `*Element` for render, `*Layout` for layout (e.g., `BoxElement`, `BoxLayout`)

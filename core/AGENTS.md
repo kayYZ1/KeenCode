@@ -14,8 +14,7 @@ core/
 │   ├── types.ts          # Tool interface definitions
 │   ├── bash.ts           # Shell command execution
 │   ├── read.ts           # File reading
-│   ├── write.ts          # File writing
-│   └── ...
+│   └── write.ts          # File writing
 └── parser.ts             # LLM response parsing (tool calls, content)
 ```
 
@@ -34,7 +33,7 @@ The core agent loop:
 
 ### Tool System
 
-Tools are defined with a schema and executor:
+Tools should be defined with a schema and executor:
 
 ```typescript
 interface Tool {

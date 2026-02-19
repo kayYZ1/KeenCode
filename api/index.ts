@@ -17,3 +17,6 @@ export type {
 	ToolDefinition,
 	Usage,
 } from "./types.ts";
+
+export { CompletionsProvider } from "./providers/completions.ts";
+export { parseSSEStream } from "./streaming/stream.ts";

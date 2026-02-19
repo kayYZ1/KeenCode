@@ -1,5 +1,5 @@
 // OpenAI-compatible types for /v1/chat/completions
-// Designed around the KimiK2 (Moonshot) API which follows this format.
+// Works with any provider exposing an OpenAI-compatible API (open-source models, KimiK2, etc.)
 
 // ---------------------------------------------------------------------------
 // Messages

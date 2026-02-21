@@ -9,6 +9,7 @@ Terminal-based coding agent with custom TUI framework.
 ├── core/         # Agent logic and tool execution (see core/AGENTS.md)
 ├── agent/        # Application entry point and UI (see agent/AGENTS.md)
 ├── tui/          # Terminal UI framework (see tui/AGENTS.md)
+├── dev/          # Development tools (logs, snapshots)
 ├── deno.json     # Deno configuration with tasks and import maps
 ```
 
@@ -32,9 +33,16 @@ tui/      (leaf - no internal deps)
 - **Run tests**: `deno task test`
 - **Run agent**: `deno task agent`
 
-### Development
+### Development (Playgrounds)
 
-- `deno task playground:agent` - Run TUI playground
+- `deno task playground:agent` - Full agent demo (all features)
+- `deno task playground:command-palette` - Command palette demo
+- `deno task playground:layout` - Box layout and borders demo
+- `deno task playground:markdown` - Markdown rendering demo
+- `deno task playground:scroll-area` - Scroll area demo
+- `deno task playground:spinner` - Spinner animations demo
+- `deno task playground:text-input` - Text input with vim mode demo
+- `deno task playground:text-styling` - Text styling demo
 
 ## Import Aliases
 

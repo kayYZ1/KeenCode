@@ -11,8 +11,7 @@ api/
 ├── providers/            # LLM provider implementations
 │   ├── index.ts          # Provider registry
 │   ├── openai.ts         # OpenAI API client
-│   ├── anthropic.ts      # Anthropic API client
-│   └── ...
+│   └── anthropic.ts      # Anthropic API client
 └── streaming/            # Streaming response handling
     └── stream.ts         # SSE/streaming utilities
 ```
@@ -21,7 +20,7 @@ api/
 
 ### Provider Interface
 
-All LLM providers implement a common interface:
+All LLM providers should implement a common interface:
 
 ```typescript
 interface LLMProvider {

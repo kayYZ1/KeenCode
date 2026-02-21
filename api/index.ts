@@ -1,2 +1,22 @@
-// API module - LLM provider integrations
-export {};
+export type {
+	CompletionChoice,
+	CompletionRequest,
+	CompletionResponse,
+	Delta,
+	DeltaToolCall,
+	FinishReason,
+	JsonSchema,
+	LLMProvider,
+	Message,
+	ProviderConfig,
+	Role,
+	StreamChoice,
+	StreamChunk,
+	ToolCall,
+	ToolChoice,
+	ToolDefinition,
+	Usage,
+} from "./types.ts";
+
+export { CompletionsProvider } from "./providers/completions.ts";
+export { parseSSEStream } from "./streaming/stream.ts";

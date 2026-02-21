@@ -6,9 +6,6 @@ out
 dist
 *.tgz
 
-# dev tools output
-dev/
-
 # code coverage
 coverage
 *.lcov

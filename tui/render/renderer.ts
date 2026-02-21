@@ -3,7 +3,6 @@ import { effect } from "@preact/signals-core";
 import Y from "yoga-layout";
 import { inputManager } from "../core/input.ts";
 import { Terminal } from "../core/terminal.ts";
-import { onExit, registerTerminal } from "../dev/index.ts";
 import { ElementType, getElement } from "./elements/index.ts";
 import { clearPendingCursor, getPendingCursor } from "./elements/text-input.ts";
 import { cleanupEffects, nextComponent, resetHooks } from "./hooks/signals.ts";
@@ -342,12 +341,10 @@ export function run(createVNode: () => VNode) {
 	const terminal = new Terminal();
 	const { unmount } = render(createVNode, terminal);
 
-	registerTerminal(terminal);
 	inputManager.start();
 
 	const cleanup = inputManager.onKeyGlobal((event) => {
 		if (event.ctrl && event.key === "c") {
-			onExit();
 			cleanup();
 			inputManager.stop();
 			unmount();
@@ -358,7 +355,6 @@ export function run(createVNode: () => VNode) {
 
 	return {
 		unmount: () => {
-			onExit();
 			cleanup();
 			inputManager.stop();
 			unmount();

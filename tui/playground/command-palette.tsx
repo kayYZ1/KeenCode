@@ -1,6 +1,5 @@
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Text } from "@/tui/render/components.tsx";
-import { initDevTools } from "@/tui/dev/index.ts";
 import { useSignal } from "@/tui/render/hooks/signals.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
 
@@ -49,5 +48,4 @@ function App() {
 	);
 }
 
-initDevTools();
 run(() => <App />);

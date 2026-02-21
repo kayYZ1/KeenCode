@@ -1,6 +1,5 @@
 import { run } from "@/tui/render/index.ts";
 import { Box, ScrollArea, Text } from "@/tui/render/components.tsx";
-import { initDevTools } from "@/tui/dev/index.ts";
 
 const COLORS = ["white", "cyan", "yellow", "green", "magenta", "red", "blue"] as const;
 
@@ -41,5 +40,4 @@ function App() {
 	);
 }
 
-initDevTools();
 run(() => <App />);

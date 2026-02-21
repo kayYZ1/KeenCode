@@ -9,7 +9,6 @@ Terminal-based coding agent with custom TUI framework.
 ├── core/         # Agent logic and tool execution (see core/AGENTS.md)
 ├── agent/        # Application entry point and UI (see agent/AGENTS.md)
 ├── tui/          # Terminal UI framework (see tui/AGENTS.md)
-├── dev/          # Development tools (logs, snapshots)
 ├── deno.json     # Deno configuration with tasks and import maps
 ```
 

@@ -17,8 +17,6 @@ tui/
 │       ├── format-text.ts      # Text styling (bold, italic, colors)
 │       ├── parse-markdown.ts   # Markdown-to-segments parser
 │       └── wrap-text.ts        # Text wrapping utilities
-├── dev/
-│   └── index.ts                # Dev helpers (exit handlers, terminal registration)
 ├── render/                     # JSX rendering layer
 │   ├── renderer.ts             # Custom renderer with Yoga layout and reconciliation
 │   ├── components.tsx          # Box, Text, TextInput, Spinner, ScrollArea, Markdown

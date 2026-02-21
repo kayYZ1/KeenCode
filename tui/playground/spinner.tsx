@@ -1,6 +1,5 @@
 import { run } from "@/tui/render/index.ts";
 import { Box, Spinner, Text } from "@/tui/render/components.tsx";
-import { initDevTools } from "@/tui/dev/index.ts";
 
 function App() {
 	return (
@@ -55,5 +54,4 @@ function App() {
 	);
 }
 
-initDevTools();
 run(() => <App />);

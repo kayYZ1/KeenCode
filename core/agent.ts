@@ -122,7 +122,10 @@ export async function* run(
 			try {
 				parsedArgs = JSON.parse(tc.function.arguments);
 			} catch {
-				const result: ToolResult = { content: `Invalid tool arguments: ${tc.function.arguments}`, isError: true };
+				const result: ToolResult = {
+					content: `Invalid tool arguments: ${tc.function.arguments}`,
+					isError: true,
+				};
 				yield { type: "tool_result", id: tc.id, result };
 				context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: result.content });
 				continue;

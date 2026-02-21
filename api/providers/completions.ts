@@ -1,11 +1,5 @@
 import { parseSSEStream } from "@/api/streaming/stream.ts";
-import type {
-	CompletionRequest,
-	CompletionResponse,
-	LLMProvider,
-	ProviderConfig,
-	StreamChunk,
-} from "@/api/types.ts";
+import type { CompletionRequest, CompletionResponse, LLMProvider, ProviderConfig, StreamChunk } from "@/api/types.ts";
 
 export class CompletionsProvider implements LLMProvider {
 	private readonly apiKey: string;

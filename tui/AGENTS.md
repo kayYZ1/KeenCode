@@ -171,7 +171,8 @@ All exported from `render/hooks/index.ts`:
 - Hooks use global index tracking (reset per render cycle via `resetHooks()`)
 - Use `toAnsi(colorName)` from `@/tui/core/primitives/color.ts` for color conversion
 - All coordinates are integer character positions
-- Text editing logic is centralized in `hooks/text-utils.ts` (exports `TextState` and operations like `insertChar`, `deleteBackward`, `moveCursor`, etc.)
+- Text editing logic is centralized in `hooks/text-utils.ts` (exports `TextState` and operations like `insertChar`,
+  `deleteBackward`, `moveCursor`, etc.)
 
 ## Naming Conventions
 

@@ -2,13 +2,18 @@
 
 A terminal-based coding agent with a custom TUI framework, built with Deno and TypeScript.
 
-TinyAg2 is a monorepo containing a terminal UI framework powered by a custom JSX runtime and Yoga flexbox layout, an OpenAI-compatible LLM API layer with streaming support, and an agentic loop with built-in tools — all wired together into an interactive coding assistant that runs entirely in your terminal.
+TinyAg2 is a monorepo containing a terminal UI framework powered by a custom JSX runtime and Yoga flexbox layout, an
+OpenAI-compatible LLM API layer with streaming support, and an agentic loop with built-in tools — all wired together
+into an interactive coding assistant that runs entirely in your terminal.
 
 ## Features
 
-- **Custom JSX-based TUI framework** — Flexbox layout via Yoga, double-buffered rendering, reactive signals, vim-mode text input
-- **OpenAI-compatible API layer** — Works with any provider exposing `/v1/chat/completions` (OpenRouter, OpenAI, local models, etc.)
-- **Streaming agent loop** — Async generator that yields events for real-time UI updates as the LLM thinks and uses tools
+- **Custom JSX-based TUI framework** — Flexbox layout via Yoga, double-buffered rendering, reactive signals, vim-mode
+  text input
+- **OpenAI-compatible API layer** — Works with any provider exposing `/v1/chat/completions` (OpenRouter, OpenAI, local
+  models, etc.)
+- **Streaming agent loop** — Async generator that yields events for real-time UI updates as the LLM thinks and uses
+  tools
 - **Built-in tools** — Bash, file read/write, grep, and glob for filesystem interaction
 - **Markdown rendering** — Inline markdown display in the terminal with syntax highlighting
 - **Command palette** — Fuzzy-searchable command menu
@@ -63,7 +68,8 @@ tui/  (leaf)     api/  (leaf)
 
 ### `api/` — LLM Provider Layer
 
-Provides an OpenAI-compatible API client with streaming SSE support. Any provider that exposes `/v1/chat/completions` works out of the box.
+Provides an OpenAI-compatible API client with streaming SSE support. Any provider that exposes `/v1/chat/completions`
+works out of the box.
 
 - `types.ts` — Standardized types (`Message`, `CompletionRequest`, `ToolDefinition`, etc.)
 - `providers/completions.ts` — Generic completions provider with streaming and cost tracking
@@ -80,13 +86,13 @@ The agent loop is an async generator (`run()`) that streams `AgentEvent`s:
 
 **Built-in tools:**
 
-| Tool | Description |
-|------|-------------|
-| `bash` | Execute shell commands |
-| `read_file` | Read file contents |
-| `write_file` | Write/create files |
-| `grep` | Search files with regex patterns |
-| `glob` | Find files by glob pattern |
+| Tool         | Description                      |
+| ------------ | -------------------------------- |
+| `bash`       | Execute shell commands           |
+| `read_file`  | Read file contents               |
+| `write_file` | Write/create files               |
+| `grep`       | Search files with regex patterns |
+| `glob`       | Find files by glob pattern       |
 
 ### `tui/` — Terminal UI Framework
 
@@ -99,24 +105,24 @@ A custom terminal UI framework with:
 
 **Components:**
 
-| Component | Description |
-|-----------|-------------|
-| `<Box>` | Flexbox container with borders, padding, background color |
-| `<Text>` | Styled text (color, bold, italic, underline, strikethrough) |
-| `<TextInput>` | Text input with cursor and vim mode support |
-| `<Spinner>` | Animated spinner |
-| `<ScrollArea>` | Scrollable container with scrollbar and auto-scroll |
-| `<Markdown>` | Renders markdown as styled terminal text |
-| `<CommandPalette>` | Fuzzy-searchable command menu overlay |
+| Component          | Description                                                 |
+| ------------------ | ----------------------------------------------------------- |
+| `<Box>`            | Flexbox container with borders, padding, background color   |
+| `<Text>`           | Styled text (color, bold, italic, underline, strikethrough) |
+| `<TextInput>`      | Text input with cursor and vim mode support                 |
+| `<Spinner>`        | Animated spinner                                            |
+| `<ScrollArea>`     | Scrollable container with scrollbar and auto-scroll         |
+| `<Markdown>`       | Renders markdown as styled terminal text                    |
+| `<CommandPalette>` | Fuzzy-searchable command menu overlay                       |
 
 **Hooks:**
 
-| Hook | Description |
-|------|-------------|
-| `useSignal(value)` | Persistent reactive signal |
-| `useSignalEffect(fn)` | Reactive side effect with cleanup |
-| `useTextInput(opts)` | Text input state with vim mode |
-| `useScrollArea(opts)` | Scroll state with keyboard control |
+| Hook                      | Description                         |
+| ------------------------- | ----------------------------------- |
+| `useSignal(value)`        | Persistent reactive signal          |
+| `useSignalEffect(fn)`     | Reactive side effect with cleanup   |
+| `useTextInput(opts)`      | Text input state with vim mode      |
+| `useScrollArea(opts)`     | Scroll state with keyboard control  |
 | `useCommandPalette(opts)` | Command palette state and filtering |
 
 ### `agent/` — Application

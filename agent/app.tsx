@@ -58,7 +58,7 @@ const COMMANDS: CommandPaletteItem[] = [
 // Components
 // ---------------------------------------------------------------------------
 
-function StatusBar({ model, tokenCount }: { model: string; tokenCount: number }) {
+function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount: number; totalCost: number }) {
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={2}>
@@ -72,6 +72,11 @@ function StatusBar({ model, tokenCount }: { model: string; tokenCount: number })
 				<Text color="gray">
 					tokens: <Text color="white">{tokenCount}</Text>
 				</Text>
+				{totalCost > 0 && (
+					<Text color="gray">
+						cost: <Text color="green">${totalCost.toFixed(4)}</Text>
+					</Text>
+				)}
 			</Box>
 		</Box>
 	);
@@ -136,6 +141,8 @@ function App() {
 	const mode = useSignal<VimMode>("INSERT");
 	const isLoading = useSignal(false);
 	const tokenCount = useSignal(0);
+	const totalCost = useSignal(0);
+	const sessionId = useSignal(0);
 	const uiMessages = useSignal<UIMessage[]>([]);
 	const conversationHistory = useSignal<Message[]>([]);
 
@@ -202,7 +209,13 @@ function App() {
 					}
 					case "message_complete": {
 						if (event.usage) {
-							tokenCount.value = event.usage.prompt_tokens + event.usage.completion_tokens;
+							tokenCount.value += event.usage.prompt_tokens + event.usage.completion_tokens;
+						}
+						if (event.generationId) {
+							const sid = sessionId.value;
+							provider.getGenerationCost(event.generationId).then((cost) => {
+								if (cost !== null && sessionId.value === sid) totalCost.value += cost;
+							});
 						}
 						// Reset for next LLM round (after tool execution)
 						currentText = "";
@@ -238,6 +251,8 @@ function App() {
 				uiMessages.value = [];
 				conversationHistory.value = [];
 				tokenCount.value = 0;
+				totalCost.value = 0;
+				sessionId.value++;
 			} else if (item.id === "quit") {
 				Deno.exit(0);
 			}
@@ -254,7 +269,7 @@ function App() {
 
 	return (
 		<Box flex flexDirection="column">
-			<StatusBar model={defaultModel} tokenCount={tokenCount.value} />
+			<StatusBar model={defaultModel} tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}

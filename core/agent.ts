@@ -12,7 +12,7 @@ export type AgentEvent =
 	| { type: "tool_call_args_delta"; id: string; args: string }
 	| { type: "tool_call_end"; id: string }
 	| { type: "tool_result"; id: string; result: ToolResult }
-	| { type: "message_complete"; usage?: Usage }
+	| { type: "message_complete"; usage?: Usage; generationId?: string }
 	| { type: "error"; error: Error };
 
 // ---------------------------------------------------------------------------
@@ -51,6 +51,7 @@ export async function* run(
 		let textContent = "";
 		const toolCallAccumulator = new Map<number, { id: string; name: string; args: string }>();
 		let lastUsage: Usage | undefined;
+		let generationId: string | undefined;
 
 		try {
 			const useTools = toolDefs.length > 0;
@@ -65,6 +66,7 @@ export async function* run(
 				const choice = chunk.choices[0];
 				if (!choice) continue;
 
+				if (chunk.id) generationId = chunk.id;
 				if (chunk.usage) lastUsage = chunk.usage;
 
 				const delta = choice.delta;
@@ -101,7 +103,7 @@ export async function* run(
 		};
 		context.push(assistantMessage);
 
-		yield { type: "message_complete", usage: lastUsage };
+		yield { type: "message_complete", usage: lastUsage, generationId };
 
 		// If no tool calls, we're done
 		if (toolCalls.length === 0) return;

@@ -44,11 +44,27 @@ export class CompletionsProvider implements LLMProvider {
 			model: request.model ?? this.defaultModel,
 			messages,
 			stream,
+			...(stream && { stream_options: { include_usage: true } }),
 			...(request.tools && { tools: request.tools }),
 			...(request.tool_choice && { tool_choice: request.tool_choice }),
 			...(request.temperature !== undefined && { temperature: request.temperature }),
 			...(request.max_tokens !== undefined && { max_tokens: request.max_tokens }),
 		};
+	}
+
+	/** Fetch cost from OpenRouter's generation endpoint. Returns null for non-OpenRouter providers. */
+	async getGenerationCost(id: string): Promise<number | null> {
+		try {
+			const url = `${this.baseURL}/generation?id=${encodeURIComponent(id)}`;
+			const response = await fetch(url, {
+				headers: { "Authorization": `Bearer ${this.apiKey}` },
+			});
+			if (!response.ok) return null;
+			const json = await response.json();
+			return typeof json?.data?.total_cost === "number" ? json.data.total_cost : null;
+		} catch {
+			return null;
+		}
 	}
 
 	private async fetch(body: Record<string, unknown>): Promise<Response> {

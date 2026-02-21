@@ -1,6 +1,5 @@
 import { run } from "@/tui/render/index.ts";
 import { Box, Text, TextInput } from "@/tui/render/components.tsx";
-import { initDevTools } from "@/tui/dev/index.ts";
 import { useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 
@@ -85,5 +84,4 @@ function App() {
 	);
 }
 
-initDevTools();
 run(() => <App />);

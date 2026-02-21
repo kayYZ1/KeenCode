@@ -52,7 +52,6 @@ deno task agent
 ├── core/    # Agent loop, tool system, context management
 ├── agent/   # Application entry point and UI
 ├── tui/     # Custom terminal UI framework
-└── dev/     # Development tools (logs, snapshots)
 ```
 
 ### Package Dependency Graph

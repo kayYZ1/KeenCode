@@ -4,7 +4,6 @@ import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
-import { initDevTools } from "@/tui/dev/index.ts";
 import { useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
@@ -342,5 +341,4 @@ function formatToolInput(argsJson: string): string {
 // Entry point
 // ---------------------------------------------------------------------------
 
-initDevTools();
 run(() => <App />);

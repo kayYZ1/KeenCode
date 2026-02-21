@@ -53,11 +53,11 @@ export async function* run(
 		let lastUsage: Usage | undefined;
 
 		try {
+			const useTools = toolDefs.length > 0;
 			const stream = config.provider.stream({
 				model: config.model,
 				messages: context,
-				tools: toolDefs.length > 0 ? toolDefs : undefined,
-				tool_choice: toolDefs.length > 0 ? "auto" : undefined,
+				tools: useTools ? toolDefs : undefined,
 				temperature: config.temperature,
 			});
 

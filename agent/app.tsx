@@ -14,8 +14,8 @@ import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/c
 // ---------------------------------------------------------------------------
 
 const apiKey = Deno.env.get("LLM_API_KEY") ?? "";
-const baseURL = Deno.env.get("LLM_BASE_URL") ?? "https://api.moonshot.ai/v1";
-const defaultModel = Deno.env.get("LLM_MODEL") ?? "kimi-k2";
+const baseURL = Deno.env.get("LLM_BASE_URL") ?? "https://openrouter.ai/api/v1";
+const defaultModel = Deno.env.get("LLM_MODEL") ?? "moonshotai/kimi-k2.5";
 
 if (!apiKey) {
 	console.error("Set LLM_API_KEY environment variable (and optionally LLM_BASE_URL, LLM_MODEL)");

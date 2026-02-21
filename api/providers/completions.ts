@@ -14,7 +14,10 @@ export class CompletionsProvider implements LLMProvider {
 
 	constructor(config: ProviderConfig) {
 		this.apiKey = config.apiKey;
-		this.baseURL = config.baseURL.replace(/\/+$/, "");
+		// Normalize: strip trailing slashes and /chat/completions if someone pastes the full endpoint URL
+		this.baseURL = config.baseURL
+			.replace(/\/+$/, "")
+			.replace(/\/chat\/completions$/, "");
 		this.defaultModel = config.defaultModel ?? "kimi-k2";
 	}
 
@@ -31,9 +34,15 @@ export class CompletionsProvider implements LLMProvider {
 	}
 
 	private buildBody(request: CompletionRequest, stream: boolean): Record<string, unknown> {
+		// Normalize messages: ensure content is never null (some providers reject it)
+		const messages = request.messages.map((msg) => ({
+			...msg,
+			content: msg.content ?? "",
+		}));
+
 		return {
 			model: request.model ?? this.defaultModel,
-			messages: request.messages,
+			messages,
 			stream,
 			...(request.tools && { tools: request.tools }),
 			...(request.tool_choice && { tool_choice: request.tool_choice }),
@@ -55,7 +64,11 @@ export class CompletionsProvider implements LLMProvider {
 
 		if (!response.ok) {
 			const text = await response.text().catch(() => "");
-			throw new Error(`${response.status} ${response.statusText}: ${text}`);
+			throw new Error(
+				`API error ${response.status}: ${text || response.statusText}\n` +
+					`URL: ${url}\n` +
+					`Model: ${body.model}`,
+			);
 		}
 
 		return response;

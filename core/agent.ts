@@ -121,7 +121,10 @@ export async function* run(
 			} catch {
 				return {
 					tc,
-					result: { content: `Invalid tool arguments: ${tc.function.arguments}`, isError: true } as ToolResult,
+					result: {
+						content: `Invalid tool arguments: ${tc.function.arguments}`,
+						isError: true,
+					} as ToolResult,
 				};
 			}
 

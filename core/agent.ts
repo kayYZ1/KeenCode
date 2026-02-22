@@ -108,41 +108,43 @@ export async function* run(
 		// If no tool calls, we're done
 		if (toolCalls.length === 0) return;
 
-		// Execute tool calls and append results
-		for (const tc of toolCalls) {
+		// Execute tool calls in parallel and append results in order
+		const toolResults = await Promise.all(toolCalls.map(async (tc) => {
 			const tool = config.tools.get(tc.function.name);
 			if (!tool) {
-				const result: ToolResult = { content: `Unknown tool: ${tc.function.name}`, isError: true };
-				yield { type: "tool_result", id: tc.id, result };
-				context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: result.content });
-				continue;
+				return { tc, result: { content: `Unknown tool: ${tc.function.name}`, isError: true } as ToolResult };
 			}
 
 			let parsedArgs: unknown;
 			try {
 				parsedArgs = JSON.parse(tc.function.arguments);
 			} catch {
-				const result: ToolResult = {
-					content: `Invalid tool arguments: ${tc.function.arguments}`,
-					isError: true,
+				return {
+					tc,
+					result: {
+						content: `Invalid tool arguments: ${tc.function.arguments}`,
+						isError: true,
+					} as ToolResult,
 				};
-				yield { type: "tool_result", id: tc.id, result };
-				context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: result.content });
-				continue;
 			}
 
 			try {
 				const result = await tool.execute(parsedArgs);
-				yield { type: "tool_result", id: tc.id, result };
-				context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: result.content });
+				return { tc, result };
 			} catch (err) {
-				const result: ToolResult = {
-					content: `Tool execution failed: ${err instanceof Error ? err.message : String(err)}`,
-					isError: true,
+				return {
+					tc,
+					result: {
+						content: `Tool execution failed: ${err instanceof Error ? err.message : String(err)}`,
+						isError: true,
+					} as ToolResult,
 				};
-				yield { type: "tool_result", id: tc.id, result };
-				context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: result.content });
 			}
+		}));
+
+		for (const { tc, result } of toolResults) {
+			yield { type: "tool_result", id: tc.id, result };
+			context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: result.content });
 		}
 
 		// Loop back to call the LLM again with tool results

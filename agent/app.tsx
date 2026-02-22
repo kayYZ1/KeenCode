@@ -7,6 +7,7 @@ import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } f
 import { useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
+import "@std/dotenv/load";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -14,14 +15,19 @@ import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/c
 
 const apiKey = Deno.env.get("LLM_API_KEY") ?? "";
 const baseURL = Deno.env.get("LLM_BASE_URL") ?? "https://openrouter.ai/api/v1";
-const defaultModel = Deno.env.get("LLM_MODEL") ?? "moonshotai/kimi-k2.5";
 
 if (!apiKey) {
-	console.error("Set LLM_API_KEY environment variable (and optionally LLM_BASE_URL, LLM_MODEL)");
+	console.error("Set LLM_API_KEY in .env file (and optionally LLM_BASE_URL)");
 	Deno.exit(1);
 }
 
-const providerConfig: ProviderConfig = { apiKey, baseURL, defaultModel };
+const MODELS = [
+	{ id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
+	{ id: "minimax/minimax-m2.5", name: "Minimax M2.5" },
+	{ id: "z-ai/glm-5", name: "GLM 5" },
+] as const;
+
+const providerConfig: ProviderConfig = { apiKey, baseURL, defaultModel: MODELS[0].id };
 const provider = new CompletionsProvider(providerConfig);
 const tools = createToolRegistry(defaultTools);
 
@@ -50,6 +56,12 @@ interface UIMessage {
 
 const COMMANDS: CommandPaletteItem[] = [
 	{ id: "new-chat", title: "New Chat", description: "Start a new conversation", keywords: ["clear", "reset"] },
+	...MODELS.map((m) => ({
+		id: `model:${m.id}`,
+		title: m.name,
+		description: m.id,
+		keywords: ["model", "switch", m.name.toLowerCase()],
+	})),
 	{ id: "quit", title: "Quit", description: "Exit the agent", keywords: ["exit", "close"] },
 ];
 
@@ -116,7 +128,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	}
 
 	return (
-		<Box flexDirection="column" gap={1}>
+		<Box flexDirection="column">
 			{msg.toolCalls?.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
 			{msg.content && (
 				<Box flexDirection="row" gap={1}>
@@ -142,6 +154,7 @@ function App() {
 	const tokenCount = useSignal(0);
 	const totalCost = useSignal(0);
 	const sessionId = useSignal(0);
+	const currentModel = useSignal(MODELS[0].id as string);
 	const uiMessages = useSignal<UIMessage[]>([]);
 	const conversationHistory = useSignal<Message[]>([]);
 
@@ -162,7 +175,7 @@ function App() {
 			const events = runAgent(conversationHistory.value, {
 				provider,
 				tools,
-				model: defaultModel,
+				model: currentModel.value,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
 			});
@@ -252,8 +265,10 @@ function App() {
 				tokenCount.value = 0;
 				totalCost.value = 0;
 				sessionId.value++;
+			} else if (item.id.startsWith("model:")) {
+				currentModel.value = item.id.slice("model:".length);
 			} else if (item.id === "quit") {
-				Deno.exit(0);
+				quit?.();
 			}
 		},
 	});
@@ -268,20 +283,13 @@ function App() {
 
 	return (
 		<Box flex flexDirection="column">
-			<StatusBar model={defaultModel} tokenCount={tokenCount.value} totalCost={totalCost.value} />
+			<StatusBar model={currentModel.value} tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
-				{isLoading.value && (
-					<Box flexDirection="row" gap={1}>
-						<Spinner color="cyan" />
-						<Text color="gray" italic>
-							Thinking...
-						</Text>
-					</Box>
-				)}
 			</ScrollArea>
 
+			<Box height={1} />
 			<Box border="round" borderColor="cyan" borderLabel={mode.value} borderLabelColor="cyan" padding={1}>
 				<TextInput
 					value={input.value}
@@ -293,7 +301,17 @@ function App() {
 				/>
 			</Box>
 
-			<Box padding={1}>
+			<Box flexDirection="row" justifyContent="space-between" padding={1}>
+				<Box flexDirection="row" gap={1}>
+					{isLoading.value && (
+						<>
+							<Spinner color="cyan" />
+							<Text color="gray" italic>
+								Thinking...
+							</Text>
+						</>
+					)}
+				</Box>
 				<Text color="gray" italic>
 					Enter to send • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode • Ctrl+C to exit
 				</Text>
@@ -341,4 +359,10 @@ function formatToolInput(argsJson: string): string {
 // Entry point
 // ---------------------------------------------------------------------------
 
-run(() => <App />);
+let quit: (() => void) | null = null;
+
+const { unmount } = run(() => <App />);
+quit = () => {
+	unmount();
+	Deno.exit(0);
+};

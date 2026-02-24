@@ -182,6 +182,16 @@ export async function* run(
 			context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: entry.result.content });
 		}
 
+		// Grounding: after side-effect tools, nudge the model to verify its changes
+		if (sideEffectCalls.length > 0) {
+			const toolNames = sideEffectCalls.map((tc) => tc.function.name).join(", ");
+			context.push({
+				role: "system",
+				content:
+					`You just ran side-effect tools (${toolNames}). Verify your changes worked as expected before proceeding — read the affected files or run a check command.`,
+			});
+		}
+
 		// Loop back to call the LLM again with tool results
 	}
 

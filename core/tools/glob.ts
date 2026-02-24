@@ -6,6 +6,7 @@ export const globTool = defineTool({
 	name: "glob",
 	description:
 		"Find files matching a glob pattern. Returns a list of matching file paths. Useful for discovering project structure and finding files by name or extension.",
+	readonly: true,
 	parameters: {
 		type: "object",
 		properties: {

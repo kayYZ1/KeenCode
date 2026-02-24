@@ -228,7 +228,7 @@ function Agent() {
 				)}
 			</ScrollArea>
 
-			<Box border="round" borderColor="cyan" borderLabel={mode.value} borderLabelColor="cyan" padding={1}>
+			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}

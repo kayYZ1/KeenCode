@@ -178,6 +178,7 @@ function App() {
 				model: currentModel.value,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
+				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
 			});
 
 			for await (const event of events) {
@@ -225,8 +226,13 @@ function App() {
 						}
 						if (event.generationId) {
 							const sid = sessionId.value;
-							provider.getGenerationCost(event.generationId).then((cost) => {
-								if (cost !== null && sessionId.value === sid) totalCost.value += cost;
+							provider.getGenerationStats(event.generationId).then((stats) => {
+								if (!stats || sessionId.value !== sid) return;
+								if (stats.totalCost !== null) totalCost.value += stats.totalCost;
+								// Fallback: use generation stats for tokens if streaming didn't provide usage
+								if (!event.usage && stats.promptTokens !== null && stats.completionTokens !== null) {
+									tokenCount.value += stats.promptTokens + stats.completionTokens;
+								}
 							});
 						}
 						// Reset for next LLM round (after tool execution)
@@ -290,12 +296,12 @@ function App() {
 			</ScrollArea>
 
 			<Box height={1} />
-			<Box border="round" borderColor="cyan" borderLabel={mode.value} borderLabelColor="cyan" padding={1}>
+			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
 					cursorStyle={cursorStyle}
-					placeholder="Ask me anything..."
+					placeholder="Are dolphins evil?"
 					placeholderColor="gray"
 					focused
 				/>
@@ -333,36 +339,25 @@ function updateAgentMessage(
 ) {
 	const msgs = [...uiMessages.value];
 	const last = msgs[msgs.length - 1];
-	const msg: UIMessage = {
-		role: "agent",
-		content,
-		toolCalls: toolCalls.length > 0 ? [...toolCalls] : undefined,
-	};
 	if (last?.role === "agent") {
-		msgs[msgs.length - 1] = msg;
+		msgs[msgs.length - 1] = { ...last, content, toolCalls: [...toolCalls] };
 	} else {
-		msgs.push(msg);
+		msgs.push({ role: "agent", content, toolCalls: [...toolCalls] });
 	}
 	uiMessages.value = msgs;
 }
 
-function formatToolInput(argsJson: string): string {
+function formatToolInput(args: string): string {
 	try {
-		const parsed = JSON.parse(argsJson);
-		return parsed.command ?? parsed.pattern ?? parsed.path ?? argsJson;
+		const parsed = JSON.parse(args);
+		return Object.entries(parsed)
+			.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+			.join(" ");
 	} catch {
-		return argsJson;
+		return args;
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
+let quit: (() => void) | undefined;
 
-let quit: (() => void) | null = null;
-
-const { unmount } = run(() => <App />);
-quit = () => {
-	unmount();
-	Deno.exit(0);
-};
+run(() => <App />, (q) => (quit = q));

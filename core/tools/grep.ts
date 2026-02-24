@@ -6,6 +6,7 @@ export const grepTool = defineTool({
 	name: "grep",
 	description:
 		"Search for a pattern in files using ripgrep (rg). Returns matching lines with file paths and line numbers. Falls back to grep if rg is not available.",
+	readonly: true,
 	parameters: {
 		type: "object",
 		properties: {

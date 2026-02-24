@@ -1,6 +1,12 @@
 import { parseSSEStream } from "@/api/streaming/stream.ts";
 import type { CompletionRequest, CompletionResponse, LLMProvider, ProviderConfig, StreamChunk } from "@/api/types.ts";
 
+export interface GenerationStats {
+	totalCost: number | null;
+	promptTokens: number | null;
+	completionTokens: number | null;
+}
+
 export class CompletionsProvider implements LLMProvider {
 	private readonly apiKey: string;
 	private readonly baseURL: string;
@@ -46,8 +52,8 @@ export class CompletionsProvider implements LLMProvider {
 		};
 	}
 
-	/** Fetch cost from OpenRouter's generation endpoint. Returns null for non-OpenRouter providers. */
-	async getGenerationCost(id: string): Promise<number | null> {
+	/** Fetch generation stats from OpenRouter's generation endpoint. Returns null for non-OpenRouter providers. */
+	async getGenerationStats(id: string): Promise<GenerationStats | null> {
 		try {
 			const url = `${this.baseURL}/generation?id=${encodeURIComponent(id)}`;
 			const response = await fetch(url, {
@@ -55,7 +61,13 @@ export class CompletionsProvider implements LLMProvider {
 			});
 			if (!response.ok) return null;
 			const json = await response.json();
-			return typeof json?.data?.total_cost === "number" ? json.data.total_cost : null;
+			const data = json?.data;
+			if (!data) return null;
+			return {
+				totalCost: typeof data.total_cost === "number" ? data.total_cost : null,
+				promptTokens: typeof data.tokens_prompt === "number" ? data.tokens_prompt : null,
+				completionTokens: typeof data.tokens_completion === "number" ? data.tokens_completion : null,
+			};
 		} catch {
 			return null;
 		}

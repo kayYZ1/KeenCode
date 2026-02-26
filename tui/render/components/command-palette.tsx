@@ -19,9 +19,9 @@ export function CommandPalette(props: CommandPaletteProps) {
 			<Box
 				width={width}
 				border="round"
-				borderColor="cyan"
+				borderColor="white"
 				borderLabel={borderLabel}
-				borderLabelColor="cyan"
+				borderLabelColor="white"
 				flexDirection="column"
 				padding={1}
 				gap={1}

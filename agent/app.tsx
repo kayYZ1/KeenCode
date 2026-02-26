@@ -72,7 +72,7 @@ const COMMANDS: CommandPaletteItem[] = [
 function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount: number; totalCost: number }) {
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
-			<Box flexDirection="row" gap={2}>
+			<Box flexDirection="row" gap={1}>
 				<Text bold color="cyan">
 					TinyAgent
 				</Text>
@@ -80,13 +80,15 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 				<Text color="yellow">{model}</Text>
 			</Box>
 			<Box flexDirection="row" gap={2}>
-				<Text color="gray">
-					tokens: <Text color="white">{tokenCount}</Text>
-				</Text>
+				<Box flexDirection="row">
+					<Text color="gray">tokens: </Text>
+					<Text color="white">{tokenCount}</Text>
+				</Box>
 				{totalCost > 0 && (
-					<Text color="gray">
-						cost: <Text color="green">${totalCost.toFixed(4)}</Text>
-					</Text>
+					<Box flexDirection="row">
+						<Text color="gray">cost: </Text>
+						<Text color="green">${totalCost.toFixed(4)}</Text>
+					</Box>
 				)}
 			</Box>
 		</Box>
@@ -151,6 +153,7 @@ function App() {
 	const cursor = useSignal(0);
 	const mode = useSignal<VimMode>("INSERT");
 	const isLoading = useSignal(false);
+	const statusText = useSignal("Thinking...");
 	const tokenCount = useSignal(0);
 	const totalCost = useSignal(0);
 	const sessionId = useSignal(0);
@@ -166,6 +169,7 @@ function App() {
 		input.value = "";
 		cursor.value = 0;
 		isLoading.value = true;
+		statusText.value = "Thinking...";
 
 		(async () => {
 			let currentText = "";
@@ -184,11 +188,13 @@ function App() {
 			for await (const event of events) {
 				switch (event.type) {
 					case "text_delta": {
+						statusText.value = "Writing...";
 						currentText += event.content;
 						updateAgentMessage(uiMessages, currentText, currentToolCalls);
 						break;
 					}
 					case "tool_call_start": {
+						statusText.value = `Running ${event.name}...`;
 						toolCallState.set(event.id, { name: event.name, args: "" });
 						break;
 					}
@@ -237,6 +243,7 @@ function App() {
 						}
 						// Reset for next LLM round (after tool execution)
 						currentText = "";
+						statusText.value = "Thinking...";
 						break;
 					}
 					case "error": {
@@ -313,7 +320,7 @@ function App() {
 						<>
 							<Spinner color="cyan" />
 							<Text color="gray" italic>
-								Thinking...
+								{statusText.value}
 							</Text>
 						</>
 					)}

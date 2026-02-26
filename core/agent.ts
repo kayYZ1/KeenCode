@@ -89,11 +89,11 @@ export async function* run(
 				});
 
 				for await (const chunk of stream) {
-					const choice = chunk.choices[0];
-					if (!choice) continue;
-
 					if (chunk.id) generationId = chunk.id;
 					if (chunk.usage) lastUsage = chunk.usage;
+
+					const choice = chunk.choices[0];
+					if (!choice) continue;
 
 					const delta = choice.delta;
 

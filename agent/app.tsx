@@ -367,4 +367,9 @@ function formatToolInput(args: string): string {
 
 let quit: (() => void) | undefined;
 
-run(() => <App />, (q) => (quit = q));
+const { unmount } = run(() => <App />);
+quit = () => {
+	unmount();
+	// deno-lint-ignore no-process-globals
+	process.exit();
+};

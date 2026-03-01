@@ -162,25 +162,25 @@ function App() {
 	const uiMessages = useSignal<UIMessage[]>([]);
 	const conversationHistory = useSignal<Message[]>([]);
 	const abortController = useSignal<AbortController | null>(null);
-	const escPrimed = useSignal(false);
+	const cancelPrimed = useSignal(false);
 
-	// Double-ESC to cancel: first ESC primes, second ESC aborts
-	const escKey = getHookKey("esc-cancel-");
-	if (!hasCleanup(escKey)) {
+	// Double-CTRL+C to cancel: first CTRL+C primes, second aborts
+	const cancelKey = getHookKey("cancel-");
+	if (!hasCleanup(cancelKey)) {
 		const cleanup = inputManager.onKeyGlobal((event) => {
-			if (event.key !== "escape" || !isLoading.value) return false;
-			if (!escPrimed.value) {
-				escPrimed.value = true;
+			if (event.key !== "c" || !event.ctrl || !isLoading.value) return false;
+			if (!cancelPrimed.value) {
+				cancelPrimed.value = true;
 				setTimeout(() => {
-					escPrimed.value = false;
+					cancelPrimed.value = false;
 				}, 1500);
 				return true;
 			}
 			abortController.value?.abort();
-			escPrimed.value = false;
+			cancelPrimed.value = false;
 			return true;
 		});
-		setCleanup(escKey, cleanup);
+		setCleanup(cancelKey, cleanup);
 	}
 
 	const handleSubmit = (value: string) => {
@@ -254,6 +254,10 @@ function App() {
 					case "message_complete": {
 						if (event.usage) {
 							tokenCount.value += event.usage.prompt_tokens + event.usage.completion_tokens;
+							// Some providers return cost directly in usage
+							if (event.usage.cost) {
+								totalCost.value += event.usage.cost;
+							}
 						}
 						if (event.generationId) {
 							const sid = sessionId.value;
@@ -294,7 +298,7 @@ function App() {
 
 			isLoading.value = false;
 			abortController.value = null;
-			escPrimed.value = false;
+			cancelPrimed.value = false;
 		})();
 	};
 
@@ -331,7 +335,7 @@ function App() {
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
 			</ScrollArea>
 
-			<Box height={1} />
+			<Box height={3} />
 			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>
 				<TextInput
 					value={input.value}
@@ -348,25 +352,25 @@ function App() {
 					{isLoading.value && (
 						<>
 							<Spinner color="cyan" />
-							<Text color="gray" italic>
+							<Text color="gray" bold italic>
 								{statusText.value}
 							</Text>
-							{escPrimed.value
+							{cancelPrimed.value
 								? (
 									<Text color="yellow" bold>
-										Press Esc again to cancel
+										Press Ctrl+C again to cancel
 									</Text>
 								)
 								: (
 									<Text color="gray" italic>
-										Esc to cancel
+										Ctrl+C to cancel
 									</Text>
 								)}
 						</>
 					)}
 				</Box>
 				<Text color="gray" italic>
-					Enter to send • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode • Ctrl+C to exit
+					Enter to send • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode
 				</Text>
 			</Box>
 

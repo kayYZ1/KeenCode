@@ -9,8 +9,7 @@ interface EditInput {
 
 export const editFileTool = defineTool({
 	name: "edit_file",
-	description:
-		"Edit a file by replacing an exact string match with new content. " +
+	description: "Edit a file by replacing an exact string match with new content. " +
 		"The old_str must match exactly one location in the file (unless replace_all is true). " +
 		"Returns a unified diff of the change. Always read the file first to get the exact text to replace.",
 	parameters: {
@@ -22,7 +21,8 @@ export const editFileTool = defineTool({
 			},
 			old_str: {
 				type: "string",
-				description: "The exact string to find in the file. Must match exactly (including whitespace and indentation).",
+				description:
+					"The exact string to find in the file. Must match exactly (including whitespace and indentation).",
 			},
 			new_str: {
 				type: "string",
@@ -49,7 +49,8 @@ export const editFileTool = defineTool({
 			if (count === 0) {
 				const hint = suggestHint(original, old_str);
 				return {
-					content: `No match found for old_str in ${path}.${hint}\n\nRead the file first to get the exact text.`,
+					content:
+						`No match found for old_str in ${path}.${hint}\n\nRead the file first to get the exact text.`,
 					isError: true,
 				};
 			}
@@ -61,7 +62,9 @@ export const editFileTool = defineTool({
 				};
 			}
 
-			const updated = replace_all ? replaceAll(original, old_str, new_str) : replaceFirst(original, old_str, new_str);
+			const updated = replace_all
+				? replaceAll(original, old_str, new_str)
+				: replaceFirst(original, old_str, new_str);
 
 			await Deno.writeTextFile(path, updated);
 

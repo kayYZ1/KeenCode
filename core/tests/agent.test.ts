@@ -122,7 +122,10 @@ Deno.test("tool call executes and yields tool events", async () => {
 		[textChunk("Done"), finishChunk()],
 	]);
 	const tools = mockTools({
-		echo: async (input: unknown) => ({ content: (input as { text: string }).text }),
+		echo: async (input: unknown) => {
+			await Promise.resolve();
+			return { content: (input as { text: string }).text };
+		},
 	});
 
 	const events = await collect(run(
@@ -167,7 +170,10 @@ Deno.test("invalid JSON args returns error result", async () => {
 		[textChunk("OK"), finishChunk()],
 	]);
 	const tools = mockTools({
-		echo: async (_input: unknown) => ({ content: "ok" }),
+		echo: async (_input: unknown) => {
+			await Promise.resolve();
+			return { content: "ok" };
+		},
 	});
 
 	const events = await collect(run(
@@ -186,7 +192,10 @@ Deno.test("max tool rounds exceeded yields error", async () => {
 		[toolCallChunk(0, "tc2", "echo", '{"text":"b"}'), finishChunk()],
 	]);
 	const tools = mockTools({
-		echo: async (input: unknown) => ({ content: (input as { text: string }).text }),
+		echo: async (input: unknown) => {
+			await Promise.resolve();
+			return { content: (input as { text: string }).text };
+		},
 	});
 
 	const events = await collect(run(
@@ -228,6 +237,7 @@ Deno.test("stream error yields error event", async () => {
 			throw new Error("not implemented");
 		},
 		async *stream(_request: CompletionRequest) {
+			yield makeChunk({});
 			throw new Error("400 Bad Request");
 		},
 	};

@@ -314,7 +314,7 @@ function App() {
 			} else if (item.id.startsWith("model:")) {
 				currentModel.value = item.id.slice("model:".length);
 			} else if (item.id === "quit") {
-				quit?.();
+				quitRef.current?.();
 			}
 		},
 	});
@@ -409,11 +409,10 @@ function formatToolInput(args: string): string {
 	}
 }
 
-let quit: (() => void) | undefined;
+const quitRef: { current: (() => void) | undefined } = { current: undefined };
 
 const { unmount } = run(() => <App />);
-quit = () => {
+quitRef.current = () => {
 	unmount();
-	// deno-lint-ignore no-process-globals
-	process.exit();
+	Deno.exit(0);
 };

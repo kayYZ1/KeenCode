@@ -1,4 +1,5 @@
 export { bashTool } from "./bash.ts";
+export { editFileTool } from "./edit.ts";
 export { globTool } from "./glob.ts";
 export { grepTool } from "./grep.ts";
 export { readFileTool } from "./read.ts";
@@ -8,6 +9,7 @@ export { createToolRegistry, defineTool, getDefinitions } from "./types.ts";
 export type { Tool, ToolRegistry, ToolResult } from "./types.ts";
 
 import { bashTool } from "./bash.ts";
+import { editFileTool } from "./edit.ts";
 import { globTool } from "./glob.ts";
 import { grepTool } from "./grep.ts";
 import { readFileTool } from "./read.ts";
@@ -19,6 +21,7 @@ export const defaultTools: Tool[] = [
 	bashTool,
 	readFileTool,
 	writeFileTool,
+	editFileTool,
 	grepTool,
 	globTool,
 ];

@@ -4,7 +4,7 @@
 		"fmt": "deno fmt",
 		"fmt:check": "deno fmt --check",
 		"lint": "deno lint",
-		"test": "deno test",
+		"test": "deno test --allow-read --allow-write",
 		"agent": "deno run --allow-all agent/index.ts",
 		"playground:agent": "deno run --allow-all tui/playground/agent.tsx",
 		"playground:command-palette": "deno run --allow-all tui/playground/command-palette.tsx",

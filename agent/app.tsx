@@ -14,26 +14,52 @@ import "@std/dotenv/load";
 // Config
 // ---------------------------------------------------------------------------
 
-const apiKey = Deno.env.get("LLM_API_KEY") ?? "";
-const baseURL = Deno.env.get("LLM_BASE_URL") ?? "https://openrouter.ai/api/v1";
+const apiKey = Deno.env.get("LLM_API_KEY");
+const baseURL = Deno.env.get("LLM_BASE_URL");
+const model = Deno.env.get("LLM_MODEL_URL");
 
 if (!apiKey) {
-	console.error("Set LLM_API_KEY in .env file (and optionally LLM_BASE_URL)");
+	console.error("Set LLM_API_KEY in .env file");
 	Deno.exit(1);
 }
 
-const MODELS = [
-	{ id: "moonshotai/kimi-k2.5", name: "Kimi K2.5" },
-	{ id: "minimax/minimax-m2.5", name: "Minimax M2.5" },
-	{ id: "z-ai/glm-5", name: "GLM 5" },
-] as const;
+if (!baseURL) {
+	console.error("Set LLM_BASE_URL in .env file");
+	Deno.exit(1);
+}
 
-const providerConfig: ProviderConfig = { apiKey, baseURL, defaultModel: MODELS[0].id };
+if (!model) {
+	console.error("Set LLM_MODEL_URL in .env file");
+	Deno.exit(1);
+}
+
+const providerConfig: ProviderConfig = { apiKey, baseURL };
 const provider = new CompletionsProvider(providerConfig);
 const tools = createToolRegistry(defaultTools);
 
 const SYSTEM_PROMPT =
-	`You are a helpful coding assistant. You have access to tools for reading files, writing files, searching code, and running shell commands. Use them to help the user with their tasks. Be concise and direct.`;
+	`You are a coding assistant running in a terminal. You have access to tools for reading files, writing files, searching code, and running shell commands.
+
+## Available Tools
+
+- Read files, search code with grep, write/edit files, run shell commands
+- Use tools to accomplish tasks efficiently. Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety concerns.
+
+## Code Style
+
+- Keep functions short and focused
+- Avoid try/catch where possible
+- Prefer const over let; use ternaries or early returns instead of reassignment
+- Use functional array methods (flatMap, filter, map) over for loops
+- Avoid unnecessary destructuring; use dot notation to preserve context
+
+## Project Context
+
+- When starting a new task, check for AGENTS.md in the project root and relevant subdirectories
+- Read any AGENTS.md files you find to understand project-specific rules, conventions, and structure
+- Follow the instructions in those files when working on the project
+
+Be concise and direct in responses.`;
 
 // ---------------------------------------------------------------------------
 // UI Types
@@ -57,12 +83,6 @@ interface UIMessage {
 
 const COMMANDS: CommandPaletteItem[] = [
 	{ id: "new-chat", title: "New Chat", description: "Start a new conversation", keywords: ["clear", "reset"] },
-	...MODELS.map((m) => ({
-		id: `model:${m.id}`,
-		title: m.name,
-		description: m.id,
-		keywords: ["model", "switch", m.name.toLowerCase()],
-	})),
 	{ id: "quit", title: "Quit", description: "Exit the agent", keywords: ["exit", "close"] },
 ];
 
@@ -80,13 +100,13 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 				<Text color="gray">│</Text>
 				<Text color="yellow">{model}</Text>
 			</Box>
-			<Box flexDirection="row" gap={2}>
-				<Box flexDirection="row">
+			<Box flexDirection="row" gap={4}>
+				<Box flexDirection="row" gap={1}>
 					<Text color="gray">tokens:</Text>
 					<Text color="white">{tokenCount}</Text>
 				</Box>
 				{totalCost > 0 && (
-					<Box flexDirection="row">
+					<Box flexDirection="row" gap={1}>
 						<Text color="gray">cost:</Text>
 						<Text color="green">${totalCost.toFixed(4)}</Text>
 					</Box>
@@ -158,7 +178,6 @@ function App() {
 	const tokenCount = useSignal(0);
 	const totalCost = useSignal(0);
 	const sessionId = useSignal(0);
-	const currentModel = useSignal(MODELS[0].id as string);
 	const uiMessages = useSignal<UIMessage[]>([]);
 	const conversationHistory = useSignal<Message[]>([]);
 	const abortController = useSignal<AbortController | null>(null);
@@ -203,7 +222,7 @@ function App() {
 			const events = runAgent(conversationHistory.value, {
 				provider,
 				tools,
-				model: currentModel.value,
+				model: model,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
 				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
@@ -311,8 +330,6 @@ function App() {
 				tokenCount.value = 0;
 				totalCost.value = 0;
 				sessionId.value++;
-			} else if (item.id.startsWith("model:")) {
-				currentModel.value = item.id.slice("model:".length);
 			} else if (item.id === "quit") {
 				quitRef.current?.();
 			}
@@ -328,20 +345,20 @@ function App() {
 	});
 
 	return (
-		<Box flex flexDirection="column">
-			<StatusBar model={currentModel.value} tokenCount={tokenCount.value} totalCost={totalCost.value} />
+		<Box flex flexDirection="column" padding={1}>
+			<StatusBar model={model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
 			</ScrollArea>
 
-			<Box height={3} />
+			<Box height={1} />
 			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
 					cursorStyle={cursorStyle}
-					placeholder="Are dolphins evil?"
+					placeholder="Awaiting instructions..."
 					placeholderColor="gray"
 					focused
 				/>

@@ -4,9 +4,10 @@ import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
-import { useSignal } from "@/tui/render/hooks/signals.ts";
+import { getHookKey, hasCleanup, setCleanup, useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
+import { inputManager } from "@/tui/core/input.ts";
 import "@std/dotenv/load";
 
 // ---------------------------------------------------------------------------
@@ -81,12 +82,12 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 			</Box>
 			<Box flexDirection="row" gap={2}>
 				<Box flexDirection="row">
-					<Text color="gray">tokens: </Text>
+					<Text color="gray">tokens:</Text>
 					<Text color="white">{tokenCount}</Text>
 				</Box>
 				{totalCost > 0 && (
 					<Box flexDirection="row">
-						<Text color="gray">cost: </Text>
+						<Text color="gray">cost:</Text>
 						<Text color="green">${totalCost.toFixed(4)}</Text>
 					</Box>
 				)}
@@ -160,6 +161,27 @@ function App() {
 	const currentModel = useSignal(MODELS[0].id as string);
 	const uiMessages = useSignal<UIMessage[]>([]);
 	const conversationHistory = useSignal<Message[]>([]);
+	const abortController = useSignal<AbortController | null>(null);
+	const escPrimed = useSignal(false);
+
+	// Double-ESC to cancel: first ESC primes, second ESC aborts
+	const escKey = getHookKey("esc-cancel-");
+	if (!hasCleanup(escKey)) {
+		const cleanup = inputManager.onKeyGlobal((event) => {
+			if (event.key !== "escape" || !isLoading.value) return false;
+			if (!escPrimed.value) {
+				escPrimed.value = true;
+				setTimeout(() => {
+					escPrimed.value = false;
+				}, 1500);
+				return true;
+			}
+			abortController.value?.abort();
+			escPrimed.value = false;
+			return true;
+		});
+		setCleanup(escKey, cleanup);
+	}
 
 	const handleSubmit = (value: string) => {
 		if (!value.trim() || isLoading.value) return;
@@ -170,6 +192,8 @@ function App() {
 		cursor.value = 0;
 		isLoading.value = true;
 		statusText.value = "Thinking...";
+		const ac = new AbortController();
+		abortController.value = ac;
 
 		(async () => {
 			let currentText = "";
@@ -183,6 +207,7 @@ function App() {
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
 				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
+				signal: ac.signal,
 			});
 
 			for await (const event of events) {
@@ -247,6 +272,7 @@ function App() {
 						break;
 					}
 					case "error": {
+						if (ac.signal.aborted) break;
 						uiMessages.value = [
 							...uiMessages.value,
 							{ role: "agent", content: `**Error:** ${event.error.message}` },
@@ -254,6 +280,7 @@ function App() {
 						break;
 					}
 				}
+				if (ac.signal.aborted) break;
 			}
 
 			// Sync final assistant content back to conversation history
@@ -266,6 +293,8 @@ function App() {
 			}
 
 			isLoading.value = false;
+			abortController.value = null;
+			escPrimed.value = false;
 		})();
 	};
 
@@ -322,6 +351,17 @@ function App() {
 							<Text color="gray" italic>
 								{statusText.value}
 							</Text>
+							{escPrimed.value
+								? (
+									<Text color="yellow" bold>
+										Press Esc again to cancel
+									</Text>
+								)
+								: (
+									<Text color="gray" italic>
+										Esc to cancel
+									</Text>
+								)}
 						</>
 					)}
 				</Box>

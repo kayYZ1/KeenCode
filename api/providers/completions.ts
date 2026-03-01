@@ -29,7 +29,7 @@ export class CompletionsProvider implements LLMProvider {
 
 	async *stream(request: CompletionRequest): AsyncIterable<StreamChunk> {
 		const body = this.buildBody(request, true);
-		const response = await this.fetch(body);
+		const response = await this.fetch(body, request.signal);
 		yield* parseSSEStream(response);
 	}
 
@@ -73,7 +73,7 @@ export class CompletionsProvider implements LLMProvider {
 		}
 	}
 
-	private async fetch(body: Record<string, unknown>): Promise<Response> {
+	private async fetch(body: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
 		const url = `${this.baseURL}/chat/completions`;
 		const response = await fetch(url, {
 			method: "POST",
@@ -82,6 +82,7 @@ export class CompletionsProvider implements LLMProvider {
 				"Authorization": `Bearer ${this.apiKey}`,
 			},
 			body: JSON.stringify(body),
+			signal,
 		});
 
 		if (!response.ok) {

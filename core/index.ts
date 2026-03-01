@@ -1,7 +1,7 @@
 export { run } from "./agent.ts";
 export type { AgentConfig, AgentEvent } from "./agent.ts";
 
-export { trimContext, estimateTokens, estimateMessageTokens } from "./context.ts";
+export { estimateMessageTokens, estimateTokens, trimContext } from "./context.ts";
 export type { TrimOptions } from "./context.ts";
 
 export {

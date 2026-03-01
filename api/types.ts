@@ -63,6 +63,7 @@ export interface CompletionRequest {
 	temperature?: number;
 	max_tokens?: number;
 	stream?: boolean;
+	signal?: AbortSignal;
 }
 
 // ---------------------------------------------------------------------------

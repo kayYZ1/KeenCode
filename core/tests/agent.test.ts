@@ -214,8 +214,10 @@ Deno.test("message_complete includes usage and generationId", async () => {
 		{ provider, tools: new Map(), model: "test", systemPrompt: "You are helpful." },
 	));
 
-	const complete = events.find((e) => e.type === "message_complete") as
-		Extract<AgentEvent, { type: "message_complete" }>;
+	const complete = events.find((e) => e.type === "message_complete") as Extract<
+		AgentEvent,
+		{ type: "message_complete" }
+	>;
 	assertEquals(complete.usage, usage);
 	assertEquals(complete.generationId, "gen-abc");
 });

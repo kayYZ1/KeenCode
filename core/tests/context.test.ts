@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { estimateTokens, estimateMessageTokens, trimContext } from "@/core/context.ts";
+import { estimateMessageTokens, estimateTokens, trimContext } from "@/core/context.ts";
 import type { Message } from "@/api/types.ts";
 
 // ---------------------------------------------------------------------------

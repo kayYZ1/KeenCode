@@ -37,7 +37,9 @@ Deno.test("parseSSEStream - parses a single valid SSE chunk", async () => {
 Deno.test("parseSSEStream - parses multiple chunks separated by double newlines", async () => {
 	const chunk2: StreamChunk = { ...validChunk, id: "2" };
 	const chunk3: StreamChunk = { ...validChunk, id: "3" };
-	const data = `data: ${JSON.stringify(validChunk)}\n\ndata: ${JSON.stringify(chunk2)}\n\ndata: ${JSON.stringify(chunk3)}\n\n`;
+	const data = `data: ${JSON.stringify(validChunk)}\n\ndata: ${JSON.stringify(chunk2)}\n\ndata: ${
+		JSON.stringify(chunk3)
+	}\n\n`;
 	const chunks = await collect(parseSSEStream(mockResponse(data)));
 	assertEquals(chunks.length, 3);
 	assertEquals(chunks[0], validChunk);

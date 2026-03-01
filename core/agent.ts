@@ -28,6 +28,7 @@ export interface AgentConfig {
 	maxToolRounds?: number;
 	temperature?: number;
 	contextLimit?: TrimOptions;
+	signal?: AbortSignal;
 }
 
 const DEFAULT_MAX_TOOL_ROUNDS = 10;
@@ -54,6 +55,8 @@ export async function* run(
 	const recentCallSignatures: string[] = [];
 
 	for (let round = 0; round < maxRounds; round++) {
+		if (config.signal?.aborted) return;
+
 		// Self-reflection: after every N tool rounds, prompt the model to assess progress
 		if (round > 0 && round % REFLECTION_INTERVAL === 0) {
 			context.push({
@@ -86,6 +89,7 @@ export async function* run(
 					messages: effectiveContext,
 					tools: useTools ? toolDefs : undefined,
 					temperature: config.temperature,
+					signal: config.signal,
 				});
 
 				for await (const chunk of stream) {
@@ -203,6 +207,7 @@ export async function* run(
 // ---------------------------------------------------------------------------
 
 function isRetryableError(err: unknown): boolean {
+	if (err instanceof DOMException && err.name === "AbortError") return false;
 	const msg = err instanceof Error ? err.message : String(err);
 	return /\b(429|500|502|503|504)\b/.test(msg) ||
 		msg.includes("network") ||
@@ -237,8 +242,10 @@ type ErrorKind = "unknown_tool" | "invalid_args" | "execution";
 
 function enrichError(toolName: string, rawError: string, kind: ErrorKind): ToolResult {
 	const hints: Record<ErrorKind, string> = {
-		unknown_tool: `Available tools may have different names. Check the tool list and try again with the correct name.`,
-		invalid_args: `The arguments could not be parsed as JSON. Review the tool's parameter schema and provide valid JSON.`,
+		unknown_tool:
+			`Available tools may have different names. Check the tool list and try again with the correct name.`,
+		invalid_args:
+			`The arguments could not be parsed as JSON. Review the tool's parameter schema and provide valid JSON.`,
 		execution: getExecutionHint(rawError),
 	};
 

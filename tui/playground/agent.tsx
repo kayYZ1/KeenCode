@@ -18,7 +18,6 @@ interface Message {
 
 const COMMANDS: CommandPaletteItem[] = [
 	{ id: "new-chat", title: "New Chat", description: "Start a new conversation", keywords: ["clear", "reset"] },
-	{ id: "model", title: "Change Model", description: "Switch LLM model", keywords: ["provider", "llm"] },
 	{ id: "compact", title: "Compact History", description: "Summarize conversation", keywords: ["compress"] },
 	{ id: "copy", title: "Copy Last Response", description: "Copy to clipboard", keywords: ["clipboard"] },
 	{ id: "clear", title: "Clear Screen", description: "Clear message history", keywords: ["reset"] },
@@ -73,15 +72,13 @@ const SIMULATED_RESPONSES: { content: string; toolCalls?: ToolCall[] }[] = [
 	},
 ];
 
-function StatusBar({ model, tokenCount }: { model: string; tokenCount: number }) {
+function StatusBar({ tokenCount }: { tokenCount: number }) {
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={2}>
 				<Text bold color="cyan">
 					TinyAgent
 				</Text>
-				<Text color="gray">│</Text>
-				<Text color="yellow">{model}</Text>
 			</Box>
 			<Box flexDirection="row" gap={2}>
 				<Text color="gray">
@@ -214,7 +211,7 @@ function Agent() {
 
 	return (
 		<Box flex flexDirection="column">
-			<StatusBar model={model.value} tokenCount={tokenCount.value} />
+			<StatusBar tokenCount={tokenCount.value} />
 
 			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{messages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}

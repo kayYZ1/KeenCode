@@ -63,6 +63,7 @@ export interface CompletionRequest {
 	temperature?: number;
 	max_tokens?: number;
 	stream?: boolean;
+	signal?: AbortSignal;
 }
 
 // ---------------------------------------------------------------------------
@@ -73,6 +74,7 @@ export interface Usage {
 	prompt_tokens: number;
 	completion_tokens: number;
 	total_tokens: number;
+	cost?: number;
 }
 
 export interface CompletionChoice {

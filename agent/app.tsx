@@ -4,9 +4,10 @@ import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
-import { useSignal } from "@/tui/render/hooks/signals.ts";
+import { getHookKey, hasCleanup, setCleanup, useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
+import { inputManager } from "@/tui/core/input.ts";
 import "@std/dotenv/load";
 
 // ---------------------------------------------------------------------------
@@ -72,7 +73,7 @@ const COMMANDS: CommandPaletteItem[] = [
 function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount: number; totalCost: number }) {
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
-			<Box flexDirection="row" gap={2}>
+			<Box flexDirection="row" gap={1}>
 				<Text bold color="cyan">
 					TinyAgent
 				</Text>
@@ -80,13 +81,15 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 				<Text color="yellow">{model}</Text>
 			</Box>
 			<Box flexDirection="row" gap={2}>
-				<Text color="gray">
-					tokens: <Text color="white">{tokenCount}</Text>
-				</Text>
+				<Box flexDirection="row">
+					<Text color="gray">tokens:</Text>
+					<Text color="white">{tokenCount}</Text>
+				</Box>
 				{totalCost > 0 && (
-					<Text color="gray">
-						cost: <Text color="green">${totalCost.toFixed(4)}</Text>
-					</Text>
+					<Box flexDirection="row">
+						<Text color="gray">cost:</Text>
+						<Text color="green">${totalCost.toFixed(4)}</Text>
+					</Box>
 				)}
 			</Box>
 		</Box>
@@ -151,12 +154,34 @@ function App() {
 	const cursor = useSignal(0);
 	const mode = useSignal<VimMode>("INSERT");
 	const isLoading = useSignal(false);
+	const statusText = useSignal("Thinking...");
 	const tokenCount = useSignal(0);
 	const totalCost = useSignal(0);
 	const sessionId = useSignal(0);
 	const currentModel = useSignal(MODELS[0].id as string);
 	const uiMessages = useSignal<UIMessage[]>([]);
 	const conversationHistory = useSignal<Message[]>([]);
+	const abortController = useSignal<AbortController | null>(null);
+	const cancelPrimed = useSignal(false);
+
+	// Double-CTRL+C to cancel: first CTRL+C primes, second aborts
+	const cancelKey = getHookKey("cancel-");
+	if (!hasCleanup(cancelKey)) {
+		const cleanup = inputManager.onKeyGlobal((event) => {
+			if (event.key !== "c" || !event.ctrl || !isLoading.value) return false;
+			if (!cancelPrimed.value) {
+				cancelPrimed.value = true;
+				setTimeout(() => {
+					cancelPrimed.value = false;
+				}, 1500);
+				return true;
+			}
+			abortController.value?.abort();
+			cancelPrimed.value = false;
+			return true;
+		});
+		setCleanup(cancelKey, cleanup);
+	}
 
 	const handleSubmit = (value: string) => {
 		if (!value.trim() || isLoading.value) return;
@@ -166,6 +191,9 @@ function App() {
 		input.value = "";
 		cursor.value = 0;
 		isLoading.value = true;
+		statusText.value = "Thinking...";
+		const ac = new AbortController();
+		abortController.value = ac;
 
 		(async () => {
 			let currentText = "";
@@ -178,16 +206,20 @@ function App() {
 				model: currentModel.value,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
+				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
+				signal: ac.signal,
 			});
 
 			for await (const event of events) {
 				switch (event.type) {
 					case "text_delta": {
+						statusText.value = "Writing...";
 						currentText += event.content;
 						updateAgentMessage(uiMessages, currentText, currentToolCalls);
 						break;
 					}
 					case "tool_call_start": {
+						statusText.value = `Running ${event.name}...`;
 						toolCallState.set(event.id, { name: event.name, args: "" });
 						break;
 					}
@@ -222,18 +254,29 @@ function App() {
 					case "message_complete": {
 						if (event.usage) {
 							tokenCount.value += event.usage.prompt_tokens + event.usage.completion_tokens;
+							// Some providers return cost directly in usage
+							if (event.usage.cost) {
+								totalCost.value += event.usage.cost;
+							}
 						}
 						if (event.generationId) {
 							const sid = sessionId.value;
-							provider.getGenerationCost(event.generationId).then((cost) => {
-								if (cost !== null && sessionId.value === sid) totalCost.value += cost;
+							provider.getGenerationStats(event.generationId).then((stats) => {
+								if (!stats || sessionId.value !== sid) return;
+								if (stats.totalCost !== null) totalCost.value += stats.totalCost;
+								// Fallback: use generation stats for tokens if streaming didn't provide usage
+								if (!event.usage && stats.promptTokens !== null && stats.completionTokens !== null) {
+									tokenCount.value += stats.promptTokens + stats.completionTokens;
+								}
 							});
 						}
 						// Reset for next LLM round (after tool execution)
 						currentText = "";
+						statusText.value = "Thinking...";
 						break;
 					}
 					case "error": {
+						if (ac.signal.aborted) break;
 						uiMessages.value = [
 							...uiMessages.value,
 							{ role: "agent", content: `**Error:** ${event.error.message}` },
@@ -241,6 +284,7 @@ function App() {
 						break;
 					}
 				}
+				if (ac.signal.aborted) break;
 			}
 
 			// Sync final assistant content back to conversation history
@@ -253,6 +297,8 @@ function App() {
 			}
 
 			isLoading.value = false;
+			abortController.value = null;
+			cancelPrimed.value = false;
 		})();
 	};
 
@@ -268,7 +314,7 @@ function App() {
 			} else if (item.id.startsWith("model:")) {
 				currentModel.value = item.id.slice("model:".length);
 			} else if (item.id === "quit") {
-				quit?.();
+				quitRef.current?.();
 			}
 		},
 	});
@@ -289,13 +335,13 @@ function App() {
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
 			</ScrollArea>
 
-			<Box height={1} />
-			<Box border="round" borderColor="cyan" borderLabel={mode.value} borderLabelColor="cyan" padding={1}>
+			<Box height={3} />
+			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
 					cursorStyle={cursorStyle}
-					placeholder="Ask me anything..."
+					placeholder="Are dolphins evil?"
 					placeholderColor="gray"
 					focused
 				/>
@@ -306,14 +352,25 @@ function App() {
 					{isLoading.value && (
 						<>
 							<Spinner color="cyan" />
-							<Text color="gray" italic>
-								Thinking...
+							<Text color="gray" bold italic>
+								{statusText.value}
 							</Text>
+							{cancelPrimed.value
+								? (
+									<Text color="yellow" bold>
+										Press Ctrl+C again to cancel
+									</Text>
+								)
+								: (
+									<Text color="gray" italic>
+										Ctrl+C to cancel
+									</Text>
+								)}
 						</>
 					)}
 				</Box>
 				<Text color="gray" italic>
-					Enter to send • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode • Ctrl+C to exit
+					Enter to send • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode
 				</Text>
 			</Box>
 
@@ -333,36 +390,29 @@ function updateAgentMessage(
 ) {
 	const msgs = [...uiMessages.value];
 	const last = msgs[msgs.length - 1];
-	const msg: UIMessage = {
-		role: "agent",
-		content,
-		toolCalls: toolCalls.length > 0 ? [...toolCalls] : undefined,
-	};
 	if (last?.role === "agent") {
-		msgs[msgs.length - 1] = msg;
+		msgs[msgs.length - 1] = { ...last, content, toolCalls: [...toolCalls] };
 	} else {
-		msgs.push(msg);
+		msgs.push({ role: "agent", content, toolCalls: [...toolCalls] });
 	}
 	uiMessages.value = msgs;
 }
 
-function formatToolInput(argsJson: string): string {
+function formatToolInput(args: string): string {
 	try {
-		const parsed = JSON.parse(argsJson);
-		return parsed.command ?? parsed.pattern ?? parsed.path ?? argsJson;
+		const parsed = JSON.parse(args);
+		return Object.entries(parsed)
+			.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+			.join(" ");
 	} catch {
-		return argsJson;
+		return args;
 	}
 }
 
-// ---------------------------------------------------------------------------
-// Entry point
-// ---------------------------------------------------------------------------
-
-let quit: (() => void) | null = null;
+const quitRef: { current: (() => void) | undefined } = { current: undefined };
 
 const { unmount } = run(() => <App />);
-quit = () => {
+quitRef.current = () => {
 	unmount();
 	Deno.exit(0);
 };

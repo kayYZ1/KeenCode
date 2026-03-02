@@ -29,8 +29,8 @@ tui/      (leaf - no internal deps)
 - **Format code**: `deno task fmt`
 - **Check formatting**: `deno task fmt:check`
 - **Lint**: `deno task lint`
-- **Run tests**: `deno task test`
-- **Run agent**: `deno task agent`
+- **Run tests**: `deno task test` (requires `--allow-read --allow-write`)
+- **Run agent**: `deno task agent` (requires `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL_URL` in `.env`)
 
 ### Development (Playgrounds)
 

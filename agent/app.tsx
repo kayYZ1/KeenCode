@@ -105,18 +105,17 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 					<Text color="gray">tokens:</Text>
 					<Text color="white">{tokenCount}</Text>
 				</Box>
-				{totalCost > 0 && (
-					<Box flexDirection="row" gap={1}>
-						<Text color="gray">cost:</Text>
-						<Text color="green">${totalCost.toFixed(4)}</Text>
-					</Box>
-				)}
+				<Box flexDirection="row" gap={1}>
+					<Text color="gray">cost:</Text>
+					<Text color="green">${totalCost > 0 ? `${totalCost.toFixed(4)}` : "-"}</Text>
+				</Box>
 			</Box>
 		</Box>
 	);
 }
 
 function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
+	const output = getToolDisplayOutput(tool);
 	return (
 		<Box flexDirection="column">
 			<Box flexDirection="row" gap={1}>
@@ -125,15 +124,27 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 				</Text>
 				<Text color="gray">{tool.input}</Text>
 			</Box>
-			{tool.output && (
-				<Box padding={1}>
-					<Text color="gray" italic>
-						{tool.output.length > 200 ? tool.output.slice(0, 200) + "..." : tool.output}
-					</Text>
+			{output && (
+				<Box flexDirection="row">
+					<Text color="gray">  {output}</Text>
 				</Box>
 			)}
 		</Box>
 	);
+}
+
+function getToolDisplayOutput(tool: UIToolCall): string | null {
+	if (!tool.output) return null;
+	switch (tool.name) {
+		case "read_file":
+			return null;
+		case "glob": {
+			const files = tool.output.split("\n").filter(Boolean);
+			return files.join(", ");
+		}
+		default:
+			return tool.output.length > 200 ? tool.output.slice(0, 200) + "..." : tool.output;
+	}
 }
 
 function MessageView({ msg }: { key?: number; msg: UIMessage }) {
@@ -151,7 +162,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	}
 
 	return (
-		<Box flexDirection="column">
+		<Box flexDirection="column" gap={1}>
 			{msg.toolCalls?.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
 			{msg.content && (
 				<Box flexDirection="row" gap={1}>
@@ -252,7 +263,7 @@ function App() {
 						if (tc) {
 							currentToolCalls.push({
 								name: tc.name,
-								input: formatToolInput(tc.args),
+								input: formatToolInput(tc.name, tc.args),
 								output: "",
 							});
 							updateAgentMessage(uiMessages, currentText, currentToolCalls);
@@ -415,12 +426,23 @@ function updateAgentMessage(
 	uiMessages.value = msgs;
 }
 
-function formatToolInput(args: string): string {
+function formatToolInput(name: string, args: string): string {
 	try {
 		const parsed = JSON.parse(args);
-		return Object.entries(parsed)
-			.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
-			.join(" ");
+		switch (name) {
+			case "read_file":
+				return parsed.path ?? args;
+			case "glob":
+				return parsed.pattern ?? args;
+			case "grep":
+				return parsed.pattern ?? args;
+			case "bash":
+				return parsed.command ?? args;
+			default:
+				return Object.entries(parsed)
+					.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+					.join(" ");
+		}
 	} catch {
 		return args;
 	}

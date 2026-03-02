@@ -38,7 +38,8 @@ The `run()` async generator in `agent.ts`:
 6. Yield `AgentEvent`s for the UI to consume
 7. Repeat until assistant responds without tool calls
 
-Features: self-reflection every 3 rounds, loop detection (repeated tool calls), automatic retries with exponential backoff, grounding nudges after side-effect tools.
+Features: self-reflection every 3 rounds, loop detection (repeated tool calls), automatic retries with exponential
+backoff, grounding nudges after side-effect tools.
 
 ### AgentEvent Types
 

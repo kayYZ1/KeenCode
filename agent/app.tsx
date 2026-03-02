@@ -107,7 +107,7 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 				</Box>
 				<Box flexDirection="row" gap={1}>
 					<Text color="gray">cost:</Text>
-					<Text color="green">${totalCost > 0 ? `${totalCost.toFixed(4)}` : "-"}</Text>
+					<Text color="green">{totalCost.toFixed(4)}$</Text>
 				</Box>
 			</Box>
 		</Box>
@@ -119,14 +119,12 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	return (
 		<Box flexDirection="column">
 			<Box flexDirection="row" gap={1}>
-				<Text color="yellow" bold>
-					⚡ {tool.name}
-				</Text>
+				<Text color="yellow" bold>{tool.name}</Text>
 				<Text color="gray">{tool.input}</Text>
 			</Box>
 			{output && (
 				<Box flexDirection="row">
-					<Text color="gray">  {output}</Text>
+					<Text color="gray">{output}</Text>
 				</Box>
 			)}
 		</Box>

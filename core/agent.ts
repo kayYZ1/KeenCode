@@ -31,7 +31,7 @@ export interface AgentConfig {
 	signal?: AbortSignal;
 }
 
-const DEFAULT_MAX_TOOL_ROUNDS = 20;
+const DEFAULT_MAX_TOOL_ROUNDS = 30;
 const REFLECTION_INTERVAL = 3;
 const MAX_API_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1000;

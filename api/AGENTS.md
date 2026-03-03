@@ -1,26 +1,26 @@
 # AGENTS.md - API
 
-LLM provider integrations and API abstractions.
+LLM provider integrations and API abstractions. Uses OpenAI-compatible `/v1/chat/completions` format.
 
 ## Architecture
 
 ```
 api/
 ├── index.ts              # Public exports
-├── types.ts              # Shared types (Message, CompletionRequest, etc.)
-├── providers/            # LLM provider implementations
-│   ├── index.ts          # Provider registry
-│   ├── openai.ts         # OpenAI API client
-│   └── anthropic.ts      # Anthropic API client
-└── streaming/            # Streaming response handling
-    └── stream.ts         # SSE/streaming utilities
+├── types.ts              # Shared types (Message, CompletionRequest, LLMProvider, etc.)
+├── providers/
+│   └── completions.ts    # OpenAI-compatible completions provider (works with any compatible API)
+├── streaming/
+│   └── stream.ts         # SSE stream parser (parseSSEStream)
+└── tests/
+    └── stream.test.ts    # Stream parsing tests
 ```
 
 ## Key Concepts
 
 ### Provider Interface
 
-All LLM providers should implement a common interface:
+All LLM providers implement the `LLMProvider` interface:
 
 ```typescript
 interface LLMProvider {
@@ -29,27 +29,41 @@ interface LLMProvider {
 }
 ```
 
+### CompletionsProvider
+
+The single provider implementation (`providers/completions.ts`):
+
+- Works with any OpenAI-compatible API (OpenRouter, open-source models, KimiK2, etc.)
+- Configured via `ProviderConfig` (`apiKey`, `baseURL`, `defaultModel`)
+- Normalizes base URLs (strips trailing slashes, `/chat/completions` suffix)
+- Supports `getGenerationStats()` for OpenRouter cost tracking
+
 ### Message Types
 
-Standardized message format across providers:
+Uses OpenAI-compatible snake_case format:
 
 ```typescript
 interface Message {
 	role: "system" | "user" | "assistant" | "tool";
-	content: string;
-	toolCalls?: ToolCall[];
-	toolCallId?: string;
+	content: string | null;
+	tool_calls?: ToolCall[];
+	tool_call_id?: string;
+	name?: string;
 }
 ```
+
+### Streaming
+
+`parseSSEStream()` parses standard OpenAI SSE format (`data: {json}\n\n`, `data: [DONE]`).
 
 ## Dependencies
 
 - No internal dependencies (leaf package)
-- External: provider SDKs or fetch-based HTTP clients
+- External: fetch-based HTTP client (no SDKs)
 
 ## Code Patterns
 
 - Providers are stateless; configuration passed at construction
 - Use async iterables for streaming responses
 - Normalize provider-specific errors to common error types
-- Keep provider implementations isolated (no cross-provider imports)
+- All types use OpenAI-compatible snake_case naming (`tool_calls`, `tool_call_id`, `finish_reason`)

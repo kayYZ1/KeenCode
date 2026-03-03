@@ -13,7 +13,10 @@
 		"playground:scroll-area": "deno run --allow-all tui/playground/scroll-area.tsx",
 		"playground:spinner": "deno run --allow-all tui/playground/spinner.tsx",
 		"playground:text-input": "deno run --allow-all tui/playground/text-input.tsx",
-		"playground:text-styling": "deno run --allow-all tui/playground/text-styling.tsx"
+		"playground:text-styling": "deno run --allow-all tui/playground/text-styling.tsx",
+		"build": "deno run --allow-all scripts/build.ts",
+		"version": "deno eval \"import {VERSION} from './version.ts'; console.log(VERSION)\"",
+		"version:bump": "deno run --allow-write=version.ts scripts/bump.ts"
 	},
 	"imports": {
 		"@preact/signals-core": "npm:@preact/signals-core@^1.11.1",

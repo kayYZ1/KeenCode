@@ -18,22 +18,20 @@ const apiKey = Deno.env.get("LLM_API_KEY");
 const baseURL = Deno.env.get("LLM_BASE_URL");
 const model = Deno.env.get("LLM_MODEL_URL");
 
-if (!apiKey) {
-	console.error("Set LLM_API_KEY in .env file");
+if (!apiKey || !baseURL || !model) {
+	if (!apiKey) console.error("Set LLM_API_KEY in .env file");
+	if (!baseURL) console.error("Set LLM_BASE_URL in .env file");
+	if (!model) console.error("Set LLM_MODEL_URL in .env file");
 	Deno.exit(1);
 }
 
-if (!baseURL) {
-	console.error("Set LLM_BASE_URL in .env file");
-	Deno.exit(1);
-}
+// TypeScript can't narrow module-level variables across control flow,
+// so re-bind after the guard above.
+const _apiKey: string = apiKey;
+const _baseURL: string = baseURL;
+const _model: string = model;
 
-if (!model) {
-	console.error("Set LLM_MODEL_URL in .env file");
-	Deno.exit(1);
-}
-
-const providerConfig: ProviderConfig = { apiKey, baseURL };
+const providerConfig: ProviderConfig = { apiKey: _apiKey, baseURL: _baseURL };
 const provider = new CompletionsProvider(providerConfig);
 const tools = createToolRegistry(defaultTools);
 
@@ -117,7 +115,7 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
 	return (
-		<Box flexDirection="column">
+		<Box flexDirection="column" gap={1}>
 			<Box flexDirection="row" gap={1}>
 				<Text color="yellow" bold>{tool.name}</Text>
 				<Text color="gray">{tool.input}</Text>
@@ -138,7 +136,12 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 			return null;
 		case "glob": {
 			const files = tool.output.split("\n").filter(Boolean);
-			return files.join(", ");
+			return `${files.length} file${files.length !== 1 ? "s" : ""} found`;
+		}
+		case "grep": {
+			const lines = tool.output.split("\n").filter(Boolean);
+			const fileSet = new Set(lines.map((l) => l.split(":")[0]));
+			return `${lines.length} match${lines.length !== 1 ? "es" : ""} in ${fileSet.size} file${fileSet.size !== 1 ? "s" : ""}`;
 		}
 		default:
 			return tool.output.length > 200 ? tool.output.slice(0, 200) + "..." : tool.output;
@@ -231,7 +234,7 @@ function App() {
 			const events = runAgent(conversationHistory.value, {
 				provider,
 				tools,
-				model: model,
+				model: _model,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
 				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
@@ -355,7 +358,7 @@ function App() {
 
 	return (
 		<Box flex flexDirection="column" padding={1}>
-			<StatusBar model={model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
+			<StatusBar model={_model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}

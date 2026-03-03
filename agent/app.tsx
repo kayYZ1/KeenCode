@@ -141,7 +141,9 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 		case "grep": {
 			const lines = tool.output.split("\n").filter(Boolean);
 			const fileSet = new Set(lines.map((l) => l.split(":")[0]));
-			return `${lines.length} match${lines.length !== 1 ? "es" : ""} in ${fileSet.size} file${fileSet.size !== 1 ? "s" : ""}`;
+			return `${lines.length} match${lines.length !== 1 ? "es" : ""} in ${fileSet.size} file${
+				fileSet.size !== 1 ? "s" : ""
+			}`;
 		}
 		default:
 			return tool.output.length > 200 ? tool.output.slice(0, 200) + "..." : tool.output;

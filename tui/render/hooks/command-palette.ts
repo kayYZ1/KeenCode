@@ -10,9 +10,12 @@ export interface CommandPaletteItem {
 
 export interface UseCommandPaletteOptions {
 	items: CommandPaletteItem[];
-	openKey?: string;
+	/** Key to open the palette. Set to `null` to disable keyboard-triggered open (use openPalette() instead). */
+	openKey?: string | null;
 	maxResults?: number;
 	onSelect?: (item: CommandPaletteItem) => void;
+	/** Called when the palette is dismissed via Escape */
+	onDismiss?: () => void;
 }
 
 function filterItems(items: CommandPaletteItem[], query: string, maxResults: number): CommandPaletteItem[] {
@@ -44,11 +47,11 @@ export function useCommandPalette(options: UseCommandPaletteOptions) {
 	if (!hasCleanup(key)) {
 		const cleanup = inputManager.onKeyGlobal((event: KeyEvent) => {
 			const opts = optionsRef.value;
-			const openKey = opts.openKey ?? "/";
+			const openKey = opts.openKey === undefined ? "/" : opts.openKey;
 			const max = opts.maxResults ?? 10;
 
 			if (!open.value) {
-				if (event.key === openKey && !event.ctrl && !event.meta) {
+				if (openKey !== null && event.key === openKey && !event.ctrl && !event.meta) {
 					open.value = true;
 					query.value = "";
 					cursor.value = 0;
@@ -63,6 +66,7 @@ export function useCommandPalette(options: UseCommandPaletteOptions) {
 				query.value = "";
 				cursor.value = 0;
 				selectedIndex.value = 0;
+				opts.onDismiss?.();
 				return true;
 			}
 
@@ -141,11 +145,27 @@ export function useCommandPalette(options: UseCommandPaletteOptions) {
 		setCleanup(key, cleanup);
 	}
 
+	const openPalette = () => {
+		open.value = true;
+		query.value = "";
+		cursor.value = 0;
+		selectedIndex.value = 0;
+	};
+
+	const closePalette = () => {
+		open.value = false;
+		query.value = "";
+		cursor.value = 0;
+		selectedIndex.value = 0;
+	};
+
 	return {
 		open,
 		query,
 		cursor,
 		selectedIndex,
 		matches,
+		openPalette,
+		closePalette,
 	};
 }

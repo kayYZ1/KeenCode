@@ -8,6 +8,7 @@ import { getHookKey, hasCleanup, setCleanup, useSignal } from "@/tui/render/hook
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
 import { inputManager } from "@/tui/core/input.ts";
+import { useProjectFiles } from "./hooks/project-files.ts";
 import "@std/dotenv/load";
 
 // ---------------------------------------------------------------------------
@@ -335,6 +336,32 @@ function App() {
 		})();
 	};
 
+	const fileMentionStart = useSignal<number | null>(null);
+	const projectFiles = useProjectFiles();
+
+	const filePalette = useCommandPalette({
+		items: projectFiles.files.value,
+		openKey: null,
+		maxResults: 10,
+		onSelect: (item) => {
+			const start = fileMentionStart.value;
+			if (start !== null) {
+				const insertText = `@${item.title} `;
+				input.value = input.value.slice(0, start) + insertText + input.value.slice(start + 1);
+				cursor.value = start + insertText.length;
+				fileMentionStart.value = null;
+			}
+		},
+		onDismiss: () => {
+			const start = fileMentionStart.value;
+			if (start !== null) {
+				input.value = input.value.slice(0, start) + input.value.slice(start + 1);
+				cursor.value = start;
+				fileMentionStart.value = null;
+			}
+		},
+	});
+
 	const palette = useCommandPalette({
 		items: COMMANDS,
 		onSelect: (item) => {
@@ -356,6 +383,13 @@ function App() {
 		mode,
 		focused: true,
 		onSubmit: handleSubmit,
+		onCharInserted: (char, cursorPos) => {
+			if (char === "@" && !filePalette.open.value && !palette.open.value && !isLoading.value) {
+				fileMentionStart.value = cursorPos - 1;
+				projectFiles.startIndexing();
+				filePalette.openPalette();
+			}
+		},
 	});
 
 	return (
@@ -401,11 +435,12 @@ function App() {
 					)}
 				</Box>
 				<Text color="gray" italic>
-					Enter to send • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode
+					Enter to send • @ for files • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode
 				</Text>
 			</Box>
 
 			<CommandPalette palette={palette} />
+			<CommandPalette palette={filePalette} placeholder="Search files..." borderLabel="Files" />
 		</Box>
 	);
 }

@@ -47,7 +47,7 @@ export function useCommandPalette(options: UseCommandPaletteOptions) {
 	if (!hasCleanup(key)) {
 		const cleanup = inputManager.onKeyGlobal((event: KeyEvent) => {
 			const opts = optionsRef.value;
-			const openKey = opts.openKey ?? "/";
+			const openKey = opts.openKey === undefined ? "/" : opts.openKey;
 			const max = opts.maxResults ?? 10;
 
 			if (!open.value) {

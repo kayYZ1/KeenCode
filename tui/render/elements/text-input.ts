@@ -1,5 +1,5 @@
 import { toAnsi } from "@/tui/core/primitives/color.ts";
-import { wrapText } from "@/tui/core/primitives/wrap-text.ts";
+import { splitTextWithOffsets, wrapText, wrapTextWithOffsets } from "@/tui/core/primitives/wrap-text.ts";
 import type { CursorStyle, ElementHandler, Position, TextInputInstance } from "../types/index.ts";
 import type { LayoutHandler } from "./index.ts";
 
@@ -51,56 +51,6 @@ function findMentions(text: string): MentionRange[] {
 		ranges.push({ start: match.index!, end: match.index! + match[0].length });
 	}
 	return ranges;
-}
-
-function wrapTextWithOffsets(text: string, width: number): Array<{ line: string; startIndex: number }> {
-	if (width <= 0) return [];
-	const str = String(text || "");
-	const result: Array<{ line: string; startIndex: number }> = [];
-	const words = str.split(" ");
-	let currentLine = "";
-	let lineStart = 0;
-
-	for (let wi = 0; wi < words.length; wi++) {
-		const word = words[wi];
-		if (word.length > width) {
-			if (currentLine) {
-				result.push({ line: currentLine, startIndex: lineStart });
-				lineStart += currentLine.length + 1;
-				currentLine = "";
-			}
-			for (let i = 0; i < word.length; i += width) {
-				const chunk = word.slice(i, i + width);
-				result.push({ line: chunk, startIndex: lineStart + i });
-			}
-			lineStart += word.length + (wi < words.length - 1 ? 1 : 0);
-			continue;
-		}
-		const testLine = currentLine ? `${currentLine} ${word}` : word;
-		if (testLine.length <= width) {
-			currentLine = testLine;
-		} else {
-			if (currentLine) {
-				result.push({ line: currentLine, startIndex: lineStart });
-				lineStart += currentLine.length + 1;
-			}
-			currentLine = word;
-		}
-	}
-	if (currentLine) {
-		result.push({ line: currentLine, startIndex: lineStart });
-	}
-	return result.length > 0 ? result : [{ line: "", startIndex: 0 }];
-}
-
-function splitTextWithOffsets(text: string, width: number): Array<{ line: string; startIndex: number }> {
-	if (width <= 0) return [];
-	const str = String(text || "");
-	const result: Array<{ line: string; startIndex: number }> = [];
-	for (let i = 0; i < str.length; i += width) {
-		result.push({ line: str.slice(i, i + width), startIndex: i });
-	}
-	return result.length > 0 ? result : [{ line: "", startIndex: 0 }];
 }
 
 function formatLineWithMentions(

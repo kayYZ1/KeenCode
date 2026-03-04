@@ -12,7 +12,7 @@ async function listFilesGit(root: string): Promise<string[]> {
 		stderr: "piped",
 	}).output();
 	if (!result.success) throw new Error("git ls-files failed");
-	return new TextDecoder().decode(result.stdout).trim().split("\n").filter(Boolean);
+	return new TextDecoder().decode(result.stdout).trim().split("\n").filter(Boolean).slice(0, MAX_FILES);
 }
 
 async function listFilesWalk(root: string): Promise<string[]> {
@@ -49,7 +49,7 @@ export function useProjectFiles(root: string = Deno.cwd()) {
 	const status = useSignal<"idle" | "indexing" | "ready" | "error">("idle");
 
 	const startIndexing = () => {
-		if (status.value !== "idle") return;
+		if (status.value === "indexing" || status.value === "ready") return;
 		status.value = "indexing";
 
 		(async () => {

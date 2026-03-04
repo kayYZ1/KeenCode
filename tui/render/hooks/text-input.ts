@@ -23,6 +23,8 @@ interface UseTextInputOptions {
 	focused?: boolean;
 	onChange?: (value: string) => void;
 	onSubmit?: (value: string) => void;
+	/** Called after a printable character is inserted */
+	onCharInserted?: (char: string, cursorPosition: number) => void;
 	/** If provided, enables vim mode with NORMAL/INSERT states */
 	mode?: Signal<VimMode>;
 	onModeChange?: (mode: VimMode) => void;
@@ -100,6 +102,7 @@ function handleInsertMode(event: KeyEvent, state: TextState, options: UseTextInp
 	if (event.key.length === 1 && !event.ctrl && !event.meta) {
 		const newValue = insertChar(state, event.key);
 		options.onChange?.(newValue);
+		options.onCharInserted?.(event.key, state.cursorPosition.value);
 		return true;
 	}
 

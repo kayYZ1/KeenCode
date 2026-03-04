@@ -1,5 +1,5 @@
 import { toAnsi } from "@/tui/core/primitives/color.ts";
-import { splitText, wrapText } from "@/tui/core/primitives/wrap-text.ts";
+import { wrapText } from "@/tui/core/primitives/wrap-text.ts";
 import type { CursorStyle, ElementHandler, Position, TextInputInstance } from "../types/index.ts";
 import type { LayoutHandler } from "./index.ts";
 
@@ -38,6 +38,107 @@ export function clearPendingCursor() {
 	pendingCursor = null;
 }
 
+interface MentionRange {
+	start: number;
+	end: number;
+}
+
+const MENTION_RE = /(^|(?<=\s))@[^\s]+/g;
+
+function findMentions(text: string): MentionRange[] {
+	const ranges: MentionRange[] = [];
+	for (const match of text.matchAll(MENTION_RE)) {
+		ranges.push({ start: match.index!, end: match.index! + match[0].length });
+	}
+	return ranges;
+}
+
+function wrapTextWithOffsets(text: string, width: number): Array<{ line: string; startIndex: number }> {
+	if (width <= 0) return [];
+	const str = String(text || "");
+	const result: Array<{ line: string; startIndex: number }> = [];
+	const words = str.split(" ");
+	let currentLine = "";
+	let lineStart = 0;
+
+	for (let wi = 0; wi < words.length; wi++) {
+		const word = words[wi];
+		if (word.length > width) {
+			if (currentLine) {
+				result.push({ line: currentLine, startIndex: lineStart });
+				lineStart += currentLine.length + 1;
+				currentLine = "";
+			}
+			for (let i = 0; i < word.length; i += width) {
+				const chunk = word.slice(i, i + width);
+				result.push({ line: chunk, startIndex: lineStart + i });
+			}
+			lineStart += word.length + (wi < words.length - 1 ? 1 : 0);
+			continue;
+		}
+		const testLine = currentLine ? `${currentLine} ${word}` : word;
+		if (testLine.length <= width) {
+			currentLine = testLine;
+		} else {
+			if (currentLine) {
+				result.push({ line: currentLine, startIndex: lineStart });
+				lineStart += currentLine.length + 1;
+			}
+			currentLine = word;
+		}
+	}
+	if (currentLine) {
+		result.push({ line: currentLine, startIndex: lineStart });
+	}
+	return result.length > 0 ? result : [{ line: "", startIndex: 0 }];
+}
+
+function splitTextWithOffsets(text: string, width: number): Array<{ line: string; startIndex: number }> {
+	if (width <= 0) return [];
+	const str = String(text || "");
+	const result: Array<{ line: string; startIndex: number }> = [];
+	for (let i = 0; i < str.length; i += width) {
+		result.push({ line: str.slice(i, i + width), startIndex: i });
+	}
+	return result.length > 0 ? result : [{ line: "", startIndex: 0 }];
+}
+
+function formatLineWithMentions(
+	line: string,
+	lineStart: number,
+	width: number,
+	mentions: MentionRange[],
+	defaultAnsi: string | null,
+	mentionAnsi: string,
+): string {
+	const padded = line.slice(0, width).padEnd(width, " ");
+	if (mentions.length === 0) {
+		if (defaultAnsi) return `${defaultAnsi}${padded}\x1b[0m`;
+		return padded;
+	}
+
+	let result = "";
+	let inMention = false;
+
+	for (let i = 0; i < padded.length; i++) {
+		const absIdx = lineStart + i;
+		const isMention = i < line.length && mentions.some((m) => absIdx >= m.start && absIdx < m.end);
+
+		if (isMention !== inMention) {
+			if (isMention) {
+				result += `${mentionAnsi}`;
+			} else {
+				result += `\x1b[0m${defaultAnsi ?? ""}`;
+			}
+			inMention = isMention;
+		}
+		result += padded[i];
+	}
+
+	result += "\x1b[0m";
+	return result;
+}
+
 export const TextInputElement: ElementHandler<TextInputInstance> = (instance, context): Position[] => {
 	const x = context.parentX + Math.round(instance.yogaNode.getComputedLeft());
 	const y = context.parentY + Math.round(instance.yogaNode.getComputedTop());
@@ -51,9 +152,15 @@ export const TextInputElement: ElementHandler<TextInputInstance> = (instance, co
 	const cursorPos = instance.props.cursorPosition ?? value.length;
 	const useWordWrap = instance.props.height === undefined;
 
-	// Split text into lines based on width
+	// Split text into lines with offset tracking
 	const textToSplit = displayText || "";
-	const lines = useWordWrap ? wrapText(textToSplit, width) : splitText(textToSplit, width);
+	const linesWithOffsets = useWordWrap
+		? wrapTextWithOffsets(textToSplit, width)
+		: splitTextWithOffsets(textToSplit, width);
+	const lines = linesWithOffsets.map((l) => l.line);
+
+	// Find @mention ranges in the original value
+	const mentions = !isPlaceholder ? findMentions(value) : [];
 
 	// Calculate cursor line and column
 	let cursorLine = 0;
@@ -80,25 +187,25 @@ export const TextInputElement: ElementHandler<TextInputInstance> = (instance, co
 	}
 
 	// Trim or pad lines to fit height
-	const displayLines = lines.slice(0, height);
-	while (displayLines.length < height) {
-		displayLines.push("");
+	const displayEntries = linesWithOffsets.slice(0, height);
+	while (displayEntries.length < height) {
+		displayEntries.push({ line: "", startIndex: 0 });
 	}
 
 	const positions: Position[] = [];
+	const colorToUse = isPlaceholder ? instance.props.placeholderColor : instance.props.color;
+	const defaultAnsi = colorToUse ? toAnsi(colorToUse) : null;
+	const mentionAnsi = toAnsi("cyan") ?? "\x1b[36m";
 
-	for (let lineIdx = 0; lineIdx < displayLines.length; lineIdx++) {
-		const line = displayLines[lineIdx] ?? "";
-
-		let formattedText = line.slice(0, width).padEnd(width, " ");
-
-		const colorToUse = isPlaceholder ? instance.props.placeholderColor : instance.props.color;
-		if (colorToUse) {
-			const ansi = toAnsi(colorToUse);
-			if (ansi) {
-				formattedText = `${ansi}${formattedText}\x1b[0m`;
-			}
-		}
+	for (let lineIdx = 0; lineIdx < displayEntries.length; lineIdx++) {
+		const entry = displayEntries[lineIdx];
+		const formattedText = mentions.length > 0
+			? formatLineWithMentions(entry.line, entry.startIndex, width, mentions, defaultAnsi, mentionAnsi)
+			: (() => {
+				let text = entry.line.slice(0, width).padEnd(width, " ");
+				if (defaultAnsi) text = `${defaultAnsi}${text}\x1b[0m`;
+				return text;
+			})();
 
 		positions.push({
 			x,

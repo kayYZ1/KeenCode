@@ -1,4 +1,5 @@
 import type { Node as YogaNode } from "yoga-layout";
+import type { HookStore } from "../hooks/signals.ts";
 
 export type CursorStyle = "block" | "bar";
 
@@ -187,6 +188,8 @@ export interface BaseInstance<T extends string = string, P extends BaseProps = B
 	yogaNode: YogaNode;
 	/** The function component that produced this instance (for reconciliation identity) */
 	componentType?: unknown;
+	/** Hook state store for function components */
+	hookStore?: HookStore;
 }
 
 /** All valid element type strings */

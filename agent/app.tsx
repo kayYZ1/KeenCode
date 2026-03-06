@@ -94,12 +94,12 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={1}>
 				<Text bold color="cyan">
-					TinyAgent
+					TinyAg2
 				</Text>
 				<Text color="gray">│</Text>
 				<Text color="yellow">{model}</Text>
 			</Box>
-			<Box flexDirection="row" gap={4}>
+			<Box flexDirection="row" gap={2}>
 				<Box flexDirection="row" gap={1}>
 					<Text color="gray">tokens:</Text>
 					<Text color="white">{tokenCount}</Text>

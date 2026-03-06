@@ -5,8 +5,14 @@ import { inputManager } from "../core/input.ts";
 import { Terminal } from "../core/terminal.ts";
 import { ElementType, getElement } from "./elements/index.ts";
 import { clearPendingCursor, getPendingCursor } from "./elements/text-input.ts";
-import { cleanupEffects, nextComponent, resetHooks } from "./hooks/signals.ts";
-import type { VNode } from "./jsx-runtime.ts";
+import {
+	clearCurrentStore,
+	createHookStore,
+	disposeHookStore,
+	type HookStore,
+	setCurrentStore,
+} from "./hooks/signals.ts";
+import { Fragment, type VNode } from "./jsx-runtime.ts";
 import type { Instance, Position, RenderContext } from "./types/index.ts";
 
 interface ReconcileCtx {
@@ -40,16 +46,25 @@ export class Renderer {
 		for (const child of instance.children) {
 			this.freeYogaNodes(child);
 		}
+		if (instance.hookStore) {
+			disposeHookStore(instance.hookStore);
+		}
 		instance.yogaNode.free();
 	}
 
 	// --- Mount path: create fresh instances from VNodes ---
 
-	mountInstance(vnode: VNode): Instance {
+	mountInstance(vnode: VNode, hookStore?: HookStore): Instance {
 		if (typeof vnode.type === "function") {
-			nextComponent();
-			const childVNode = (vnode.type as any)(vnode.props);
-			return this.mountInstance(childVNode);
+			const store = hookStore ?? createHookStore();
+			setCurrentStore(store);
+			while (typeof vnode.type === "function") {
+				vnode = (vnode.type as any)(vnode.props);
+			}
+			clearCurrentStore();
+			const instance = this.mountInstance(vnode);
+			instance.hookStore = store;
+			return instance;
 		}
 
 		if (vnode.type === "fragment") {
@@ -99,11 +114,31 @@ export class Renderer {
 		if (!child || typeof child !== "object" || !(child as VNode).type) return;
 
 		let vnode = child as VNode;
-		let componentType: unknown;
-		while (typeof vnode.type === "function") {
-			if (!componentType) componentType = vnode.type;
-			nextComponent();
-			vnode = (vnode.type as any)(vnode.props);
+		if (typeof vnode.type === "function") {
+			const componentType = vnode.type;
+			const store = createHookStore();
+			setCurrentStore(store);
+			while (typeof vnode.type === "function") {
+				vnode = (vnode.type as any)(vnode.props);
+			}
+			clearCurrentStore();
+
+			if (vnode.type === "fragment") {
+				const rawChildren = Array.isArray(vnode.props.children)
+					? vnode.props.children
+					: [vnode.props.children].filter(Boolean);
+				for (const c of rawChildren.flat(Infinity)) {
+					this.mountChild(c, parent);
+				}
+				return;
+			}
+
+			const childInstance = this.mountInstance(vnode);
+			childInstance.componentType = componentType;
+			childInstance.hookStore = store;
+			parent.children.push(childInstance);
+			parent.yogaNode.insertChild(childInstance.yogaNode, parent.children.length - 1);
+			return;
 		}
 
 		if (vnode.type === "fragment") {
@@ -117,7 +152,6 @@ export class Renderer {
 		}
 
 		const childInstance = this.mountInstance(vnode);
-		if (componentType) childInstance.componentType = componentType;
 		parent.children.push(childInstance);
 		parent.yogaNode.insertChild(childInstance.yogaNode, parent.children.length - 1);
 	}
@@ -126,9 +160,15 @@ export class Renderer {
 
 	reconcile(vnode: VNode, existing: Instance | null): Instance {
 		if (typeof vnode.type === "function") {
-			nextComponent();
-			const childVNode = (vnode.type as any)(vnode.props);
-			return this.reconcile(childVNode, existing);
+			const store = existing?.hookStore ?? createHookStore();
+			setCurrentStore(store);
+			while (typeof vnode.type === "function") {
+				vnode = (vnode.type as any)(vnode.props);
+			}
+			clearCurrentStore();
+			const instance = this.reconcile(vnode, existing);
+			instance.hookStore = store;
+			return instance;
 		}
 
 		if (vnode.type === "fragment") {
@@ -250,30 +290,75 @@ export class Renderer {
 			} else if (child && typeof child === "object" && (child as VNode).type) {
 				let vnode = child as VNode;
 				let componentType: unknown;
-				while (typeof vnode.type === "function") {
-					if (!componentType) componentType = vnode.type;
-					nextComponent();
-					vnode = (vnode.type as any)(vnode.props);
+				let store: HookStore | undefined;
+
+				// Resolve Fragment immediately — it's transparent and its children
+				// must share the parent's positional tracking (ctx). Consuming an
+				// old child for the Fragment wrapper itself would shift positions
+				// and break hookStore matching for children inside it.
+				if (vnode.type === Fragment) {
+					vnode = Fragment(vnode.props as { children?: VNode | VNode[] });
 				}
 
-				if (vnode.type === "fragment") {
-					const fragChildren = Array.isArray(vnode.props.children)
-						? vnode.props.children
-						: [vnode.props.children].filter(Boolean);
-					this.resolveAndReconcile(fragChildren.flat(Infinity), ctx, newChildren);
+				if (typeof vnode.type === "function") {
+					componentType = vnode.type;
+				}
+
+				if (vnode.type === "fragment" || (typeof vnode.type !== "function" && !componentType)) {
+					if (vnode.type === "fragment") {
+						const fragChildren = Array.isArray(vnode.props.children)
+							? vnode.props.children
+							: [vnode.props.children].filter(Boolean);
+						this.resolveAndReconcile(fragChildren.flat(Infinity), ctx, newChildren);
+					} else {
+						const key = vnode.props.key;
+						const oldChild = this.consumeOldChild(ctx, key);
+						const inst = this.reconcile(vnode, oldChild);
+						newChildren.push(inst);
+					}
 				} else {
 					const key = vnode.props.key;
 					const oldChild = this.consumeOldChild(ctx, key);
 
 					if (componentType && oldChild && oldChild.componentType !== componentType) {
 						this.freeYogaNodes(oldChild);
-						const inst = this.mountInstance(vnode);
-						inst.componentType = componentType;
-						newChildren.push(inst);
+						store = createHookStore();
+						setCurrentStore(store);
+						while (typeof vnode.type === "function") {
+							vnode = (vnode.type as any)(vnode.props);
+						}
+						clearCurrentStore();
+
+						if (vnode.type === "fragment") {
+							const fragChildren = Array.isArray(vnode.props.children)
+								? vnode.props.children
+								: [vnode.props.children].filter(Boolean);
+							this.resolveAndReconcile(fragChildren.flat(Infinity), ctx, newChildren);
+						} else {
+							const inst = this.mountInstance(vnode);
+							inst.componentType = componentType;
+							inst.hookStore = store;
+							newChildren.push(inst);
+						}
 					} else {
-						const inst = this.reconcile(vnode, oldChild);
-						if (componentType) inst.componentType = componentType;
-						newChildren.push(inst);
+						store = oldChild?.hookStore ?? createHookStore();
+						setCurrentStore(store);
+						while (typeof vnode.type === "function") {
+							vnode = (vnode.type as any)(vnode.props);
+						}
+						clearCurrentStore();
+
+						if (vnode.type === "fragment") {
+							const fragChildren = Array.isArray(vnode.props.children)
+								? vnode.props.children
+								: [vnode.props.children].filter(Boolean);
+							this.resolveAndReconcile(fragChildren.flat(Infinity), ctx, newChildren);
+						} else {
+							const inst = this.reconcile(vnode, oldChild);
+							if (componentType) inst.componentType = componentType;
+							inst.hookStore = store;
+							newChildren.push(inst);
+						}
 					}
 				}
 			}
@@ -309,7 +394,6 @@ export class Renderer {
 
 	render(createVNode: () => VNode) {
 		this.disposeEffect = effect(() => {
-			resetHooks();
 			this.commitRender(createVNode());
 		});
 	}
@@ -323,7 +407,6 @@ export class Renderer {
 			this.freeYogaNodes(this.rootInstance);
 			this.rootInstance = null;
 		}
-		cleanupEffects();
 		this.terminal.dispose();
 	}
 }

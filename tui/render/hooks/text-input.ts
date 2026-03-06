@@ -209,7 +209,7 @@ function handleNormalMode(event: KeyEvent, state: TextState, options: UseTextInp
 }
 
 export function useTextInput(options: UseTextInputOptions) {
-	const key = getHookKey("input-");
+	const key = getHookKey();
 
 	if (!hasCleanup(key) && options.focused !== false) {
 		const state: TextState = { value: options.value, cursorPosition: options.cursorPosition };

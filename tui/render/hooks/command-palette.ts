@@ -42,7 +42,7 @@ export function useCommandPalette(options: UseCommandPaletteOptions) {
 	const maxResults = options.maxResults ?? 10;
 	const matches = filterItems(options.items, query.value, maxResults);
 
-	const key = getHookKey("cmdpalette-");
+	const key = getHookKey();
 
 	if (!hasCleanup(key)) {
 		const cleanup = inputManager.onKeyGlobal((event: KeyEvent) => {

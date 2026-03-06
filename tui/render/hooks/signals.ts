@@ -1,62 +1,75 @@
 import { effect, type Signal, signal } from "@preact/signals-core";
 
-const signalCache = new Map<string, Signal<unknown>>();
-const effectCleanups = new Map<string, () => void>();
-
-let componentId = 0;
-let hookIndex = 0;
-
-export function resetHooks() {
-	componentId = 0;
-	hookIndex = 0;
+export interface HookStore {
+	signals: Map<number, Signal<unknown>>;
+	effects: Map<number, () => void>;
+	hookIndex: number;
 }
 
-export function nextComponent() {
-	componentId++;
-	hookIndex = 0;
+export function createHookStore(): HookStore {
+	return { signals: new Map(), effects: new Map(), hookIndex: 0 };
 }
 
-export function getHookKey(prefix = "") {
-	return `${prefix}${componentId}-${hookIndex++}`;
+export function disposeHookStore(store: HookStore) {
+	for (const cleanup of store.effects.values()) {
+		cleanup();
+	}
+	store.effects.clear();
+	store.signals.clear();
 }
 
-export function hasCleanup(key: string): boolean {
-	return effectCleanups.has(key);
+let currentStore: HookStore | null = null;
+
+export function setCurrentStore(store: HookStore) {
+	currentStore = store;
+	store.hookIndex = 0;
 }
 
-export function setCleanup(key: string, cleanup: () => void) {
-	effectCleanups.set(key, cleanup);
+export function clearCurrentStore() {
+	currentStore = null;
+}
+
+function getCurrentStore(): HookStore {
+	if (!currentStore) {
+		throw new Error("Hook called outside of a component render");
+	}
+	return currentStore;
+}
+
+export function getHookKey(_prefix = ""): number {
+	const store = getCurrentStore();
+	return store.hookIndex++;
+}
+
+export function hasCleanup(key: number): boolean {
+	const store = getCurrentStore();
+	return store.effects.has(key);
+}
+
+export function setCleanup(key: number, cleanup: () => void) {
+	const store = getCurrentStore();
+	store.effects.set(key, cleanup);
 }
 
 export function useSignal<T>(initialValue: T): Signal<T> {
-	const key = getHookKey();
-	if (!signalCache.has(key)) {
-		signalCache.set(key, signal(initialValue));
+	const store = getCurrentStore();
+	const idx = store.hookIndex++;
+	if (!store.signals.has(idx)) {
+		store.signals.set(idx, signal(initialValue));
 	}
-	return signalCache.get(key) as Signal<T>;
+	return store.signals.get(idx) as Signal<T>;
 }
 
 export function useSignalEffect(fn: () => undefined | (() => void)): void {
-	const key = getHookKey();
-	if (!effectCleanups.has(key)) {
+	const store = getCurrentStore();
+	const idx = store.hookIndex++;
+	if (!store.effects.has(idx)) {
 		const cleanup = effect(() => {
 			const result = fn();
 			if (typeof result === "function") {
 				return result;
 			}
 		});
-		effectCleanups.set(key, cleanup);
+		store.effects.set(idx, cleanup);
 	}
-}
-
-export function cleanupEffects() {
-	for (const cleanup of effectCleanups.values()) {
-		cleanup();
-	}
-
-	effectCleanups.clear();
-	signalCache.clear();
-
-	componentId = 0;
-	hookIndex = 0;
 }

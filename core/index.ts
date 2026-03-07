@@ -1,18 +1,8 @@
 export { run } from "./agent.ts";
 export type { AgentConfig, AgentEvent } from "./agent.ts";
 
-export { estimateMessageTokens, estimateTokens, trimContext } from "./context.ts";
+export { trimContext } from "./context.ts";
 export type { TrimOptions } from "./context.ts";
 
-export {
-	bashTool,
-	createToolRegistry,
-	defaultTools,
-	defineTool,
-	getDefinitions,
-	globTool,
-	grepTool,
-	readFileTool,
-	writeFileTool,
-} from "./tools/index.ts";
+export { createToolRegistry, defaultTools } from "./tools/index.ts";
 export type { Tool, ToolRegistry, ToolResult } from "./tools/index.ts";

@@ -1,5 +1,5 @@
 import { run as runAgent } from "@/core/agent.ts";
-import type { Message, ProviderConfig } from "@/api/types.ts";
+import type { Message } from "@/api/types.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { run } from "@/tui/render/index.ts";
@@ -21,25 +21,20 @@ import "@std/dotenv/load";
 // Config
 // ---------------------------------------------------------------------------
 
-const apiKey = Deno.env.get("LLM_API_KEY");
-const baseURL = Deno.env.get("LLM_BASE_URL");
-const model = Deno.env.get("LLM_MODEL_URL");
-
-if (!apiKey || !baseURL || !model) {
-	if (!apiKey) console.error("Set LLM_API_KEY in .env file");
-	if (!baseURL) console.error("Set LLM_BASE_URL in .env file");
-	if (!model) console.error("Set LLM_MODEL_URL in .env file");
-	Deno.exit(1);
+function requireEnv(name: string): string {
+	const value = Deno.env.get(name);
+	if (!value) {
+		console.error(`Set ${name} in .env file`);
+		Deno.exit(1);
+	}
+	return value;
 }
 
-// TypeScript can't narrow module-level variables across control flow,
-// so re-bind after the guard above.
-const _apiKey: string = apiKey;
-const _baseURL: string = baseURL;
-const _model: string = model;
+const apiKey = requireEnv("LLM_API_KEY");
+const baseURL = requireEnv("LLM_BASE_URL");
+const model = requireEnv("LLM_MODEL_URL");
 
-const providerConfig: ProviderConfig = { apiKey: _apiKey, baseURL: _baseURL };
-const provider = new CompletionsProvider(providerConfig);
+const provider = new CompletionsProvider({ apiKey, baseURL });
 const tools = createToolRegistry(defaultTools);
 
 const SYSTEM_PROMPT =
@@ -275,7 +270,7 @@ function App() {
 			const events = runAgent(conversationHistory.value, {
 				provider,
 				tools,
-				model: _model,
+				model,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
 				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
@@ -436,7 +431,7 @@ function App() {
 
 	return (
 		<Box flex flexDirection="column" padding={1}>
-			<StatusBar model={_model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
+			<StatusBar model={model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}

@@ -10,7 +10,6 @@ export interface GenerationStats {
 export class CompletionsProvider implements LLMProvider {
 	private readonly apiKey: string;
 	private readonly baseURL: string;
-	readonly defaultModel: string;
 
 	constructor(config: ProviderConfig) {
 		this.apiKey = config.apiKey;
@@ -18,7 +17,6 @@ export class CompletionsProvider implements LLMProvider {
 		this.baseURL = config.baseURL
 			.replace(/\/+$/, "")
 			.replace(/\/chat\/completions$/, "");
-		this.defaultModel = config.defaultModel ?? "kimi-k2";
 	}
 
 	async complete(request: CompletionRequest): Promise<CompletionResponse> {
@@ -41,7 +39,7 @@ export class CompletionsProvider implements LLMProvider {
 		}));
 
 		return {
-			model: request.model ?? this.defaultModel,
+			model: request.model,
 			messages,
 			stream,
 			...(stream && { stream_options: { include_usage: true } }),

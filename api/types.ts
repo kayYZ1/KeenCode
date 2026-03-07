@@ -134,7 +134,6 @@ export interface StreamChunk {
 export interface ProviderConfig {
 	apiKey: string;
 	baseURL: string;
-	defaultModel?: string;
 }
 
 export interface LLMProvider {

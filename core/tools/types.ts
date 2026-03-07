@@ -10,6 +10,8 @@ export interface ToolResult {
 	meta?: {
 		truncated?: boolean;
 		durationMs?: number;
+		/** Unified diff output from file-editing tools */
+		diff?: string;
 	};
 }
 

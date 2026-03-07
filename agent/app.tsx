@@ -1,9 +1,15 @@
 import { run as runAgent } from "@/core/agent.ts";
-import type { Message, ProviderConfig } from "@/api/types.ts";
+import type { Message } from "@/api/types.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
+import {
+	type DisplayDiffLine,
+	formatDiffForDisplay,
+	shouldShowDiff,
+	summarizeDiff,
+} from "@/tui/core/primitives/parse-diff.ts";
 import { getHookKey, hasCleanup, setCleanup, useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
@@ -15,25 +21,20 @@ import "@std/dotenv/load";
 // Config
 // ---------------------------------------------------------------------------
 
-const apiKey = Deno.env.get("LLM_API_KEY");
-const baseURL = Deno.env.get("LLM_BASE_URL");
-const model = Deno.env.get("LLM_MODEL_URL");
-
-if (!apiKey || !baseURL || !model) {
-	if (!apiKey) console.error("Set LLM_API_KEY in .env file");
-	if (!baseURL) console.error("Set LLM_BASE_URL in .env file");
-	if (!model) console.error("Set LLM_MODEL_URL in .env file");
-	Deno.exit(1);
+function requireEnv(name: string): string {
+	const value = Deno.env.get(name);
+	if (!value) {
+		console.error(`Set ${name} in .env file`);
+		Deno.exit(1);
+	}
+	return value;
 }
 
-// TypeScript can't narrow module-level variables across control flow,
-// so re-bind after the guard above.
-const _apiKey: string = apiKey;
-const _baseURL: string = baseURL;
-const _model: string = model;
+const apiKey = requireEnv("LLM_API_KEY");
+const baseURL = requireEnv("LLM_BASE_URL");
+const model = requireEnv("LLM_MODEL_URL");
 
-const providerConfig: ProviderConfig = { apiKey: _apiKey, baseURL: _baseURL };
-const provider = new CompletionsProvider(providerConfig);
+const provider = new CompletionsProvider({ apiKey, baseURL });
 const tools = createToolRegistry(defaultTools);
 
 const SYSTEM_PROMPT =
@@ -68,6 +69,7 @@ interface UIToolCall {
 	name: string;
 	input: string;
 	output: string;
+	diff?: string;
 }
 
 interface UIMessage {
@@ -113,15 +115,46 @@ function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount
 	);
 }
 
+const DIFF_INDICATOR: Record<DisplayDiffLine["type"], { symbol: string; color: string }> = {
+	add: { symbol: "+", color: "green" },
+	remove: { symbol: "-", color: "red" },
+	context: { symbol: " ", color: "gray" },
+};
+
+function DiffView({ diff }: { diff: string }) {
+	const lines = formatDiffForDisplay(diff);
+	const maxNum = lines.reduce((m, l) => Math.max(m, l.newNum ?? 0, l.oldNum ?? 0), 0);
+	const numWidth = String(maxNum).length;
+
+	return (
+		<Box flexDirection="column">
+			{lines.map((line, i) => {
+				const { symbol, color } = DIFF_INDICATOR[line.type];
+				const num = line.newNum ?? line.oldNum;
+				const lineNum = num !== null ? String(num).padStart(numWidth) : " ".repeat(numWidth);
+				return (
+					<Text key={i} color={color}>
+						{`  ${lineNum} ${symbol} ${line.code}`}
+					</Text>
+				);
+			})}
+		</Box>
+	);
+}
+
 function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
+	const showDiff = tool.diff && shouldShowDiff(tool.diff);
+	const diffSummary = tool.diff && !showDiff ? summarizeDiff(tool.diff) : null;
 	return (
 		<Box flexDirection="column" gap={1}>
 			<Box flexDirection="row" gap={1}>
 				<Text color="yellow" bold>{tool.name}</Text>
 				<Text color="gray">{tool.input}</Text>
+				{diffSummary && <Text color="gray">({diffSummary})</Text>}
 			</Box>
-			{output && (
+			{showDiff && <DiffView diff={tool.diff!} />}
+			{!tool.diff && output && (
 				<Box flexDirection="row">
 					<Text color="gray">{output}</Text>
 				</Box>
@@ -237,7 +270,7 @@ function App() {
 			const events = runAgent(conversationHistory.value, {
 				provider,
 				tools,
-				model: _model,
+				model,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
 				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
@@ -279,7 +312,11 @@ function App() {
 						if (tc) {
 							const idx = currentToolCalls.findIndex((t) => t.name === tc.name && !t.output);
 							if (idx !== -1) {
-								currentToolCalls[idx] = { ...currentToolCalls[idx], output: event.result.content };
+								currentToolCalls[idx] = {
+									...currentToolCalls[idx],
+									output: event.result.content,
+									diff: event.result.meta?.diff,
+								};
 							}
 							updateAgentMessage(uiMessages, currentText, currentToolCalls);
 						}
@@ -394,7 +431,7 @@ function App() {
 
 	return (
 		<Box flex flexDirection="column" padding={1}>
-			<StatusBar model={_model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
+			<StatusBar model={model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
 				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}

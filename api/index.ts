@@ -1,22 +1,3 @@
-export type {
-	CompletionChoice,
-	CompletionRequest,
-	CompletionResponse,
-	Delta,
-	DeltaToolCall,
-	FinishReason,
-	JsonSchema,
-	LLMProvider,
-	Message,
-	ProviderConfig,
-	Role,
-	StreamChoice,
-	StreamChunk,
-	ToolCall,
-	ToolChoice,
-	ToolDefinition,
-	Usage,
-} from "./types.ts";
+export type { LLMProvider, Message, ProviderConfig, ToolDefinition, Usage } from "./types.ts";
 
 export { CompletionsProvider } from "./providers/completions.ts";
-export { parseSSEStream } from "./streaming/stream.ts";

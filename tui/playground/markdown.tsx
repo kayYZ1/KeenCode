@@ -12,13 +12,26 @@ You can also use ***bold and italic*** together.
 - **Bold** and *italic* formatting
 - ~~Strikethrough~~ text
 - Inline \`code\` snippets
+- [Links](https://example.com) with URL display
 
 ### Code Blocks
 
-\`\`\`
+\`\`\`typescript
 function hello() {
   console.log("Hello, world!");
 }
+\`\`\`
+
+### Diff Blocks
+
+\`\`\`diff
+--- a/src/app.ts
++++ b/src/app.ts
+@@ -1,4 +1,4 @@
+ import { run } from "./agent.ts";
+-const port = 3000;
++const port = 8080;
+ run({ port });
 \`\`\`
 
 > This is a blockquote.
@@ -33,6 +46,9 @@ function hello() {
 3. Third item
 
 - Bullet point one
+  - Nested item
+  - Another nested item
+    - Deeply nested
 - Bullet point two
 - Bullet point three
 

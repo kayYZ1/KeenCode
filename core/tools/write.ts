@@ -1,3 +1,4 @@
+import { unifiedDiff } from "./diff.ts";
 import { defineTool } from "./types.ts";
 
 export const writeFileTool = defineTool({
@@ -21,9 +22,22 @@ export const writeFileTool = defineTool({
 		const { path, content } = input as { path: string; content: string };
 
 		try {
+			let original: string | null = null;
+			try {
+				original = await Deno.readTextFile(path);
+			} catch {
+				// File doesn't exist yet
+			}
+
 			await Deno.writeTextFile(path, content);
+
+			const isNew = original === null;
+			const diff = unifiedDiff(original ?? "", content, path);
+			const lines = content.split("\n").length;
+			const message = isNew ? `Created ${path} (${lines} lines)` : `Wrote ${lines} lines to ${path}`;
 			return {
-				content: `Successfully wrote ${content.length} bytes to ${path}`,
+				content: `${message}\n\n${diff}`,
+				meta: { diff },
 			};
 		} catch (err) {
 			return {

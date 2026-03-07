@@ -74,7 +74,6 @@ export async function* run(
 
 		const useTools = toolDefs.length > 0;
 		const effectiveContext = config.contextLimit ? trimContext(context, config.contextLimit) : context;
-		let streamSuccess = false;
 
 		for (let attempt = 0; attempt < MAX_API_RETRIES; attempt++) {
 			// Reset accumulators on retry
@@ -113,7 +112,6 @@ export async function* run(
 					}
 				}
 
-				streamSuccess = true;
 				break;
 			} catch (err) {
 				if (attempt < MAX_API_RETRIES - 1 && isRetryableError(err)) {
@@ -124,11 +122,6 @@ export async function* run(
 				yield { type: "error", error: err instanceof Error ? err : new Error(String(err)) };
 				return;
 			}
-		}
-
-		if (!streamSuccess) {
-			yield { type: "error", error: new Error("LLM API failed after retries") };
-			return;
 		}
 
 		// Emit tool_call_end for any accumulated tool calls

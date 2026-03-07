@@ -55,6 +55,7 @@ function formatSegment(segment: MarkdownSegment): string {
 	}
 	if (segment.bold) text = `\x1b[1m${text}\x1b[22m`;
 	if (segment.italic) text = `\x1b[3m${text}\x1b[23m`;
+	if (segment.underline) text = `\x1b[4m${text}\x1b[24m`;
 	if (segment.strikethrough) text = `\x1b[9m${text}\x1b[29m`;
 	return text;
 }

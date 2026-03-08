@@ -1,4 +1,3 @@
-import process from "node:process";
 import { effect } from "@preact/signals-core";
 import Y from "yoga-layout";
 import { inputManager } from "../core/input.ts";
@@ -420,28 +419,26 @@ export function render(createVNode: () => VNode, terminal: Terminal) {
 	};
 }
 
-export function run(createVNode: () => VNode) {
+export function run(createVNode: (quit: () => void) => VNode) {
 	const terminal = new Terminal();
-	const { unmount } = render(createVNode, terminal);
+
+	const quit = () => {
+		cleanupKey();
+		inputManager.stop();
+		unmount();
+		Deno.exit(0);
+	};
+
+	const { unmount } = render(() => createVNode(quit), terminal);
 
 	inputManager.start();
 
-	const cleanup = inputManager.onKeyGlobal((event) => {
+	const cleanupKey = inputManager.onKeyGlobal((event) => {
 		if (event.ctrl && event.key === "c") {
-			cleanup();
-			inputManager.stop();
-			unmount();
-			process.exit();
+			quit();
 		}
 		return false;
 	});
 
-	return {
-		unmount: () => {
-			cleanup();
-			inputManager.stop();
-			unmount();
-		},
-		terminal,
-	};
+	return { unmount, terminal };
 }

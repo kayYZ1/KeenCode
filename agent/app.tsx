@@ -217,7 +217,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 // Main App
 // ---------------------------------------------------------------------------
 
-function App() {
+function App({ onQuit }: { onQuit: () => void }) {
 	const input = useSignal("");
 	const cursor = useSignal(0);
 	const mode = useSignal<VimMode>("INSERT");
@@ -229,22 +229,23 @@ function App() {
 	const uiMessages = useSignal<UIMessage[]>([]);
 	const conversationHistory = useSignal<Message[]>([]);
 	const abortController = useSignal<AbortController | null>(null);
-	const cancelPrimed = useSignal(false);
+	const escPrimed = useSignal(false);
 
-	// Double-CTRL+C to cancel: first CTRL+C primes, second aborts
+	// Double-Esc to cancel streaming (only when loading, so it doesn't conflict with vim mode toggle)
 	const cancelKey = getHookKey("cancel-");
 	if (!hasCleanup(cancelKey)) {
+		let lastEsc = 0;
 		const cleanup = inputManager.onKeyGlobal((event) => {
-			if (event.key !== "c" || !event.ctrl || !isLoading.value) return false;
-			if (!cancelPrimed.value) {
-				cancelPrimed.value = true;
-				setTimeout(() => {
-					cancelPrimed.value = false;
-				}, 1500);
-				return true;
+			if (event.key !== "escape" || !isLoading.value) return false;
+			const now = Date.now();
+			if (now - lastEsc < 1500) {
+				abortController.value?.abort();
+				lastEsc = 0;
+				escPrimed.value = false;
+			} else {
+				lastEsc = now;
+				escPrimed.value = true;
 			}
-			abortController.value?.abort();
-			cancelPrimed.value = false;
 			return true;
 		});
 		setCleanup(cancelKey, cleanup);
@@ -369,7 +370,6 @@ function App() {
 
 			isLoading.value = false;
 			abortController.value = null;
-			cancelPrimed.value = false;
 		})();
 	};
 
@@ -409,7 +409,7 @@ function App() {
 				totalCost.value = 0;
 				sessionId.value++;
 			} else if (item.id === "quit") {
-				quitRef.current?.();
+				onQuit();
 			}
 		},
 	});
@@ -457,15 +457,15 @@ function App() {
 							<Text color="gray" bold italic>
 								{statusText.value}
 							</Text>
-							{cancelPrimed.value
+							{escPrimed.value
 								? (
 									<Text color="yellow" bold>
-										Press Ctrl+C again to cancel
+										Press Esc again to cancel
 									</Text>
 								)
 								: (
 									<Text color="gray" italic>
-										Ctrl+C to cancel
+										Esc to cancel
 									</Text>
 								)}
 						</>
@@ -523,10 +523,4 @@ function formatToolInput(name: string, args: string): string {
 	}
 }
 
-const quitRef: { current: (() => void) | undefined } = { current: undefined };
-
-const { unmount } = run(() => <App />);
-quitRef.current = () => {
-	unmount();
-	Deno.exit(0);
-};
+run((quit) => <App onQuit={quit} />);

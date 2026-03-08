@@ -1,7 +1,7 @@
 import { run as runAgent } from "@/core/agent.ts";
-import type { Message } from "@/api/types.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
+import { entriesToMessages, SessionManager } from "@/core/sessions/index.ts";
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
 import {
@@ -217,7 +217,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 // Main App
 // ---------------------------------------------------------------------------
 
-function App({ onQuit }: { onQuit: () => void }) {
+function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: SessionManager }) {
 	const input = useSignal("");
 	const cursor = useSignal(0);
 	const mode = useSignal<VimMode>("INSERT");
@@ -227,7 +227,7 @@ function App({ onQuit }: { onQuit: () => void }) {
 	const totalCost = useSignal(0);
 	const sessionId = useSignal(0);
 	const uiMessages = useSignal<UIMessage[]>([]);
-	const conversationHistory = useSignal<Message[]>([]);
+	const session = useSignal<SessionManager>(initialSession);
 	const abortController = useSignal<AbortController | null>(null);
 	const escPrimed = useSignal(false);
 
@@ -255,7 +255,6 @@ function App({ onQuit }: { onQuit: () => void }) {
 		if (!value.trim() || isLoading.value) return;
 
 		uiMessages.value = [...uiMessages.value, { role: "user", content: value }];
-		conversationHistory.value = [...conversationHistory.value, { role: "user", content: value }];
 		input.value = "";
 		cursor.value = 0;
 		isLoading.value = true;
@@ -264,11 +263,15 @@ function App({ onQuit }: { onQuit: () => void }) {
 		abortController.value = ac;
 
 		(async () => {
+			// Append user message to session and build LLM context
+			await session.value.append({ type: "message", role: "user", content: value });
+			const messages = entriesToMessages(session.value.getEntries());
+
 			let currentText = "";
 			const currentToolCalls: UIToolCall[] = [];
 			const toolCallState = new Map<string, { name: string; args: string }>();
 
-			const events = runAgent(conversationHistory.value, {
+			const events = runAgent(messages, {
 				provider,
 				tools,
 				model,
@@ -347,6 +350,25 @@ function App({ onQuit }: { onQuit: () => void }) {
 						statusText.value = "Thinking...";
 						break;
 					}
+					case "turn_complete": {
+						const am = event.assistantMessage;
+						await session.value.append({
+							type: "message",
+							role: "assistant",
+							content: am.content,
+							...(am.tool_calls?.length && { toolCalls: am.tool_calls }),
+						});
+
+						for (const tr of event.toolResults) {
+							await session.value.append({
+								type: "tool_result",
+								toolCallId: tr.tool_call_id!,
+								toolName: tr.name!,
+								content: tr.content!,
+							});
+						}
+						break;
+					}
 					case "error": {
 						if (ac.signal.aborted) break;
 						uiMessages.value = [
@@ -357,15 +379,6 @@ function App({ onQuit }: { onQuit: () => void }) {
 					}
 				}
 				if (ac.signal.aborted) break;
-			}
-
-			// Sync final assistant content back to conversation history
-			const lastUI = uiMessages.value[uiMessages.value.length - 1];
-			if (lastUI?.role === "agent" && lastUI.content) {
-				conversationHistory.value = [
-					...conversationHistory.value,
-					{ role: "assistant", content: lastUI.content },
-				];
 			}
 
 			isLoading.value = false;
@@ -404,10 +417,12 @@ function App({ onQuit }: { onQuit: () => void }) {
 		onSelect: (item) => {
 			if (item.id === "new-chat") {
 				uiMessages.value = [];
-				conversationHistory.value = [];
 				tokenCount.value = 0;
 				totalCost.value = 0;
 				sessionId.value++;
+				SessionManager.create(Deno.cwd()).then((sm) => {
+					session.value = sm;
+				});
 			} else if (item.id === "quit") {
 				onQuit();
 			}
@@ -523,4 +538,5 @@ function formatToolInput(name: string, args: string): string {
 	}
 }
 
-run((quit) => <App onQuit={quit} />);
+const initialSession = await SessionManager.create(Deno.cwd());
+run((quit) => <App onQuit={quit} initialSession={initialSession} />);

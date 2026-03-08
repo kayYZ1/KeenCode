@@ -274,7 +274,7 @@ function App({ onQuit }: { onQuit: () => void }) {
 				model,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
-				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
+				contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
 				signal: ac.signal,
 			});
 

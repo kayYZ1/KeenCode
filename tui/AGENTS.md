@@ -15,6 +15,7 @@ tui/
 │       ├── color.ts            # Color parsing and ANSI conversion
 │       ├── draw-box.ts         # Box/border rendering with styles
 │       ├── format-text.ts      # Text styling (bold, italic, colors)
+│       ├── parse-diff.ts       # Unified diff parser (formatDiffForDisplay)
 │       ├── parse-markdown.ts   # Markdown-to-segments parser
 │       └── wrap-text.ts        # Text wrapping utilities
 ├── render/                     # JSX rendering layer
@@ -44,6 +45,7 @@ tui/
 ├── playground/                 # Example apps
 │   ├── agent.tsx               # Agent UI demo
 │   ├── command-palette.tsx     # Command palette demo
+│   ├── diff.tsx                # Diff rendering demo
 │   ├── layout.tsx              # Flexbox layout demo
 │   ├── markdown.tsx            # Markdown rendering demo
 │   ├── scroll-area.tsx         # Scroll area demo

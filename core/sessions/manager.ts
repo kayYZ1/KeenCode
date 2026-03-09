@@ -7,6 +7,7 @@ import {
 	type MessageEntry,
 	type Session,
 	type SessionHeader,
+	type SessionSummary,
 	type ToolResultEntry,
 } from "./types.ts";
 
@@ -66,18 +67,18 @@ export function entriesToMessages(entries: Entry[]): Message[] {
 export class SessionManager {
 	private session: Session;
 	private path: string | null;
+	private needsFlush: boolean;
 
-	private constructor(session: Session, path: string | null) {
+	private constructor(session: Session, path: string | null, needsFlush = false) {
 		this.session = session;
 		this.path = path;
+		this.needsFlush = needsFlush;
 	}
 
-	/** Start a new persistent session. */
-	static async create(cwd: string): Promise<SessionManager> {
+	/** Start a new persistent session. File is created lazily on first append. */
+	static create(cwd: string): SessionManager {
 		const id = newId();
 		const path = sessionFilePath(cwd, id);
-
-		await Deno.mkdir(sessionDir(cwd), { recursive: true });
 
 		const header: SessionHeader = {
 			type: "session",
@@ -87,8 +88,7 @@ export class SessionManager {
 			cwd,
 		};
 
-		await Deno.writeTextFile(path, JSON.stringify(header) + "\n");
-		return new SessionManager({ header, entries: [] }, path);
+		return new SessionManager({ header, entries: [] }, path, true);
 	}
 
 	/** Load and continue the most recent session for this cwd. */
@@ -122,6 +122,52 @@ export class SessionManager {
 		return files.sort().reverse();
 	}
 
+	/** List session summaries (id, timestamp, first user message) for this cwd. */
+	static async listSummaries(cwd: string): Promise<SessionSummary[]> {
+		const files = await SessionManager.list(cwd);
+		const summaries: SessionSummary[] = [];
+
+		for (const filePath of files) {
+			try {
+				const file = await Deno.open(filePath, { read: true });
+				const lines: string[] = [];
+				let buf = "";
+
+				// Read only enough to get header + first user message (typically lines 1-2)
+				for await (const chunk of file.readable) {
+					buf += new TextDecoder().decode(chunk);
+					const parts = buf.split("\n");
+					for (let i = 0; i < parts.length - 1; i++) {
+						if (parts[i].trim()) lines.push(parts[i]);
+					}
+					buf = parts[parts.length - 1];
+
+					// Header + first entry is enough in most cases
+					if (lines.length >= 2) break;
+				}
+				if (buf.trim()) lines.push(buf);
+				if (lines.length === 0) continue;
+
+				const header = JSON.parse(lines[0]) as SessionHeader;
+				let firstUserMessage: string | null = null;
+
+				for (let i = 1; i < lines.length; i++) {
+					const entry = JSON.parse(lines[i]) as Entry;
+					if (entry.type === "message" && entry.role === "user" && typeof entry.content === "string") {
+						firstUserMessage = entry.content;
+						break;
+					}
+				}
+
+				summaries.push({ id: header.id, path: filePath, timestamp: header.timestamp, firstUserMessage });
+			} catch {
+				// Skip corrupt files
+			}
+		}
+
+		return summaries;
+	}
+
 	getEntries(): Entry[] {
 		return this.session.entries;
 	}
@@ -134,12 +180,17 @@ export class SessionManager {
 		return this.path;
 	}
 
-	/** Append a new entry to the session. */
+	/** Append a new entry to the session. Creates the file on first call. */
 	async append(entry: NewEntry): Promise<string> {
 		const id = newId();
 		const full = { ...entry, id, timestamp: new Date().toISOString() } as Entry;
 
 		if (this.path) {
+			if (this.needsFlush) {
+				await Deno.mkdir(sessionDir(this.session.header.cwd), { recursive: true });
+				await Deno.writeTextFile(this.path, JSON.stringify(this.session.header) + "\n");
+				this.needsFlush = false;
+			}
 			await Deno.writeTextFile(this.path, JSON.stringify(full) + "\n", { append: true });
 		}
 

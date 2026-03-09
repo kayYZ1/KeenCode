@@ -48,4 +48,11 @@ export interface Session {
 	entries: Entry[];
 }
 
+export interface SessionSummary {
+	id: string;
+	path: string;
+	timestamp: string;
+	firstUserMessage: string | null;
+}
+
 export const CURRENT_VERSION = 1;

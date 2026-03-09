@@ -1,7 +1,7 @@
 import { run as runAgent } from "@/core/agent.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
-import { entriesToMessages, SessionManager } from "@/core/sessions/index.ts";
+import { entriesToMessages, type Entry, SessionManager } from "@/core/sessions/index.ts";
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
 import {
@@ -84,6 +84,12 @@ interface UIMessage {
 
 const COMMANDS: CommandPaletteItem[] = [
 	{ id: "new-chat", title: "New Chat", description: "Start a new conversation", keywords: ["clear", "reset"] },
+	{
+		id: "threads",
+		title: "Threads",
+		description: "Switch to a previous session",
+		keywords: ["sessions", "history"],
+	},
 	{ id: "quit", title: "Quit", description: "Exit the agent", keywords: ["exit", "close"] },
 ];
 
@@ -216,6 +222,36 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 // ---------------------------------------------------------------------------
 // Main App
 // ---------------------------------------------------------------------------
+
+function entriesToUIMessages(entries: Entry[]): UIMessage[] {
+	const messages: UIMessage[] = [];
+	const toolCallIdMap = new Map<string, UIToolCall>();
+
+	for (const entry of entries) {
+		if (entry.type === "message" && entry.role === "user" && typeof entry.content === "string") {
+			messages.push({ role: "user", content: entry.content });
+		} else if (entry.type === "message" && entry.role === "assistant") {
+			const toolCalls: UIToolCall[] = entry.toolCalls?.map((tc) => {
+				const uiTc: UIToolCall = {
+					name: tc.function.name,
+					input: formatToolInput(tc.function.name, tc.function.arguments),
+					output: "",
+				};
+				toolCallIdMap.set(tc.id, uiTc);
+				return uiTc;
+			}) ?? [];
+			messages.push({
+				role: "agent",
+				content: typeof entry.content === "string" ? entry.content : "",
+				toolCalls,
+			});
+		} else if (entry.type === "tool_result") {
+			const tc = toolCallIdMap.get(entry.toolCallId);
+			if (tc) tc.output = entry.content;
+		}
+	}
+	return messages;
+}
 
 function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: SessionManager }) {
 	const input = useSignal("");
@@ -389,6 +425,24 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 	const fileMentionStart = useSignal<number | null>(null);
 	const projectFiles = useProjectFiles();
 
+	const threadItems = useSignal<CommandPaletteItem[]>([]);
+
+	const threadsPalette = useCommandPalette({
+		items: threadItems.value,
+		openKey: null,
+		maxResults: 20,
+		onSelect: (item) => {
+			if (isLoading.value) return;
+			SessionManager.open(item.id).then((sm) => {
+				session.value = sm;
+				uiMessages.value = entriesToUIMessages(sm.getEntries());
+				tokenCount.value = 0;
+				totalCost.value = 0;
+				sessionId.value++;
+			});
+		},
+	});
+
 	const filePalette = useCommandPalette({
 		items: projectFiles.files.value,
 		openKey: null,
@@ -420,8 +474,20 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				tokenCount.value = 0;
 				totalCost.value = 0;
 				sessionId.value++;
-				SessionManager.create(Deno.cwd()).then((sm) => {
-					session.value = sm;
+				session.value = SessionManager.create(Deno.cwd());
+			} else if (item.id === "threads") {
+				SessionManager.listSummaries(Deno.cwd()).then((summaries) => {
+					threadItems.value = summaries.map((s) => {
+						const date = new Date(s.timestamp);
+						const label = date.toLocaleString();
+						const preview = s.firstUserMessage
+							? s.firstUserMessage.length > 45
+								? s.firstUserMessage.slice(0, 45) + "…"
+								: s.firstUserMessage
+							: "(empty session)";
+						return { id: s.path, title: preview, description: label, keywords: [s.id] };
+					});
+					threadsPalette.openPalette();
 				});
 			} else if (item.id === "quit") {
 				onQuit();
@@ -493,6 +559,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 
 			<CommandPalette palette={palette} />
 			<CommandPalette palette={filePalette} placeholder="Search files..." borderLabel="Files" />
+			<CommandPalette palette={threadsPalette} placeholder="Search threads..." borderLabel="Threads" width={80} />
 		</Box>
 	);
 }
@@ -538,5 +605,5 @@ function formatToolInput(name: string, args: string): string {
 	}
 }
 
-const initialSession = await SessionManager.create(Deno.cwd());
+const initialSession = SessionManager.create(Deno.cwd());
 run((quit) => <App onQuit={quit} initialSession={initialSession} />);

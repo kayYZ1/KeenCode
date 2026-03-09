@@ -468,6 +468,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 
 	const palette = useCommandPalette({
 		items: COMMANDS,
+		mode,
 		onSelect: (item) => {
 			if (item.id === "new-chat") {
 				uiMessages.value = [];

@@ -152,19 +152,21 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
 	const showDiff = tool.diff && shouldShowDiff(tool.diff);
 	const diffSummary = tool.diff && !showDiff ? summarizeDiff(tool.diff) : null;
+
+	const header = (
+		<Box flexDirection="row" gap={1}>
+			<Text color="yellow" bold>{tool.name}</Text>
+			<Text color="gray">{tool.input}</Text>
+			{diffSummary && <Text color="gray">({diffSummary})</Text>}
+		</Box>
+	);
+
+	if (!showDiff && !output) return header;
+
 	return (
 		<Box flexDirection="column" gap={1}>
-			<Box flexDirection="row" gap={1}>
-				<Text color="yellow" bold>{tool.name}</Text>
-				<Text color="gray">{tool.input}</Text>
-				{diffSummary && <Text color="gray">({diffSummary})</Text>}
-			</Box>
-			{showDiff && <DiffView diff={tool.diff!} />}
-			{!tool.diff && output && (
-				<Box flexDirection="row">
-					<Text color="gray">{output}</Text>
-				</Box>
-			)}
+			{header}
+			{showDiff ? <DiffView diff={tool.diff!} /> : <Text color="gray">{output}</Text>}
 		</Box>
 	);
 }
@@ -173,6 +175,8 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 	if (!tool.output) return null;
 	switch (tool.name) {
 		case "read_file":
+		case "write_file":
+		case "edit_file":
 			return null;
 		case "glob": {
 			const files = tool.output.split("\n").filter(Boolean);
@@ -185,8 +189,12 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 				fileSet.size !== 1 ? "s" : ""
 			}`;
 		}
+		case "bash": {
+			const firstLine = tool.output.split("\n")[0];
+			return firstLine.length > 120 ? firstLine.slice(0, 120) + "..." : firstLine;
+		}
 		default:
-			return tool.output.length > 200 ? tool.output.slice(0, 200) + "..." : tool.output;
+			return tool.output.length > 120 ? tool.output.slice(0, 120) + "..." : tool.output;
 	}
 }
 
@@ -204,17 +212,23 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 		);
 	}
 
+	const hasText = !!msg.content?.trim();
+	const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
+	if (!hasText && !hasToolCalls) return null;
+
 	return (
-		<Box flexDirection="column" gap={1}>
+		<Box flexDirection="column">
+			{hasText
+				? (
+					<Box flexDirection="row" gap={1}>
+						<Text color="blue" bold>
+							●
+						</Text>
+						<Markdown flex>{msg.content}</Markdown>
+					</Box>
+				)
+				: null}
 			{msg.toolCalls?.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
-			{msg.content && (
-				<Box flexDirection="row" gap={1}>
-					<Text color="blue" bold>
-						●
-					</Text>
-					<Markdown flex>{msg.content}</Markdown>
-				</Box>
-			)}
 		</Box>
 	);
 }
@@ -304,8 +318,9 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			const messages = entriesToMessages(session.value.getEntries());
 
 			let currentText = "";
-			const currentToolCalls: UIToolCall[] = [];
+			let currentToolCalls: UIToolCall[] = [];
 			const toolCallState = new Map<string, { name: string; args: string }>();
+			let currentMsgIndex = -1;
 
 			const events = runAgent(messages, {
 				provider,
@@ -322,7 +337,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 					case "text_delta": {
 						statusText.value = "Writing...";
 						currentText += event.content;
-						updateAgentMessage(uiMessages, currentText, currentToolCalls);
+						currentMsgIndex = updateAgentMessage(uiMessages, currentText, currentToolCalls, currentMsgIndex);
 						break;
 					}
 					case "tool_call_start": {
@@ -343,7 +358,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 								input: formatToolInput(tc.name, tc.args),
 								output: "",
 							});
-							updateAgentMessage(uiMessages, currentText, currentToolCalls);
+							currentMsgIndex = updateAgentMessage(uiMessages, currentText, currentToolCalls, currentMsgIndex);
 						}
 						break;
 					}
@@ -358,7 +373,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 									diff: event.result.meta?.diff,
 								};
 							}
-							updateAgentMessage(uiMessages, currentText, currentToolCalls);
+							currentMsgIndex = updateAgentMessage(uiMessages, currentText, currentToolCalls, currentMsgIndex);
 						}
 						break;
 					}
@@ -381,8 +396,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 								}
 							});
 						}
-						// Reset for next LLM round (after tool execution)
-						currentText = "";
 						statusText.value = "Thinking...";
 						break;
 					}
@@ -403,6 +416,11 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 								content: tr.content!,
 							});
 						}
+
+						// Reset so the next LLM round gets its own agent message
+						currentText = "";
+						currentToolCalls = [];
+						currentMsgIndex = -1;
 						break;
 					}
 					case "error": {
@@ -573,15 +591,17 @@ function updateAgentMessage(
 	uiMessages: { value: UIMessage[] },
 	content: string,
 	toolCalls: UIToolCall[],
-) {
+	msgIndex: number,
+): number {
 	const msgs = [...uiMessages.value];
-	const last = msgs[msgs.length - 1];
-	if (last?.role === "agent") {
-		msgs[msgs.length - 1] = { ...last, content, toolCalls: [...toolCalls] };
+	if (msgIndex >= 0 && msgIndex < msgs.length) {
+		msgs[msgIndex] = { ...msgs[msgIndex], content, toolCalls: [...toolCalls] };
 	} else {
+		msgIndex = msgs.length;
 		msgs.push({ role: "agent", content, toolCalls: [...toolCalls] });
 	}
 	uiMessages.value = msgs;
+	return msgIndex;
 }
 
 function formatToolInput(name: string, args: string): string {
@@ -589,16 +609,18 @@ function formatToolInput(name: string, args: string): string {
 		const parsed = JSON.parse(args);
 		switch (name) {
 			case "read_file":
+			case "write_file":
+			case "edit_file":
 				return parsed.path ?? args;
 			case "glob":
-				return parsed.pattern ?? args;
 			case "grep":
 				return parsed.pattern ?? args;
 			case "bash":
 				return parsed.command ?? args;
 			default:
 				return Object.entries(parsed)
-					.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+					.filter(([, v]) => typeof v === "string" && v.length < 100)
+					.map(([k, v]) => `${k}=${v}`)
 					.join(" ");
 		}
 	} catch {

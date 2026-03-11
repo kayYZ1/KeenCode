@@ -98,9 +98,10 @@ Deno.test("text-only response yields text_delta and message_complete", async () 
 		{ provider, tools: new Map(), model: "test", systemPrompt: "You are helpful." },
 	));
 
-	assertEquals(events.length, 2);
+	assertEquals(events.length, 3);
 	assertEquals(events[0], { type: "text_delta", content: "Hello" });
 	assertEquals(events[1].type, "message_complete");
+	assertEquals(events[2].type, "turn_complete");
 });
 
 Deno.test("accumulates multiple text deltas", async () => {

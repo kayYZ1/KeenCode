@@ -14,7 +14,7 @@ into an interactive coding assistant that runs entirely in your terminal.
   models, etc.)
 - **Streaming agent loop** — Async generator that yields events for real-time UI updates as the LLM thinks and uses
   tools
-- **Built-in tools** — Bash, file read/write, grep, and glob for filesystem interaction
+- **Built-in tools** — Bash, file read/write/edit, grep, and glob for filesystem interaction
 - **Markdown rendering** — Inline markdown display in the terminal with syntax highlighting
 - **Command palette** — Fuzzy-searchable command menu
 
@@ -36,7 +36,7 @@ Set your environment variables:
 ```bash
 export LLM_API_KEY="your-api-key"
 export LLM_BASE_URL="https://openrouter.ai/api/v1"  # optional, defaults to OpenRouter
-export LLM_MODEL="moonshotai/kimi-k2.5"              # optional, defaults to kimi-k2.5
+export LLM_MODEL_URL="moonshotai/kimi-k2.5"            # optional, defaults to kimi-k2.5
 ```
 
 ### Run
@@ -48,10 +48,13 @@ deno task agent
 ## Architecture
 
 ```
-├── api/     # LLM provider integrations (OpenAI-compatible)
-├── core/    # Agent loop, tool system, context management
-├── agent/   # Application entry point and UI
-├── tui/     # Custom terminal UI framework
+├── api/        # LLM provider integrations (OpenAI-compatible)
+├── core/       # Agent loop, tool system, context management
+├── agent/      # Application entry point and UI
+├── tui/        # Custom terminal UI framework
+├── scripts/    # Build and version bump scripts
+├── dist/       # Compiled binary output
+├── version.ts  # Version constant
 ```
 
 ### Package Dependency Graph
@@ -90,6 +93,7 @@ The agent loop is an async generator (`run()`) that streams `AgentEvent`s:
 | `bash`       | Execute shell commands           |
 | `read_file`  | Read file contents               |
 | `write_file` | Write/create files               |
+| `edit_file`  | Edit files (find-and-replace)    |
 | `grep`       | Search files with regex patterns |
 | `glob`       | Find files by glob pattern       |
 
@@ -141,6 +145,9 @@ deno task fmt          # Format code
 deno task fmt:check    # Check formatting
 deno task lint         # Lint
 deno task test         # Run tests
+deno task build        # Build binary (dist/tinyag)
+deno task version      # Show current version
+deno task version:bump <patch|minor|major>  # Bump version
 ```
 
 ### Playgrounds
@@ -150,6 +157,7 @@ Interactive demos for individual TUI components:
 ```bash
 deno task playground:agent            # Full agent UI demo
 deno task playground:command-palette  # Command palette
+deno task playground:diff            # Diff rendering
 deno task playground:layout           # Flexbox layout and borders
 deno task playground:markdown         # Markdown rendering
 deno task playground:scroll-area      # Scroll area

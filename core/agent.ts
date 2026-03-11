@@ -14,6 +14,7 @@ export type AgentEvent =
 	| { type: "tool_call_end"; id: string }
 	| { type: "tool_result"; id: string; result: ToolResult }
 	| { type: "message_complete"; usage?: Usage; generationId?: string }
+	| { type: "turn_complete"; assistantMessage: Message; toolResults: Message[] }
 	| { type: "error"; error: Error };
 
 // ---------------------------------------------------------------------------
@@ -140,8 +141,11 @@ export async function* run(
 
 		yield { type: "message_complete", usage: lastUsage, generationId };
 
-		// If no tool calls, we're done
-		if (toolCalls.length === 0) return;
+		// If no tool calls, we're done — emit final turn and exit
+		if (toolCalls.length === 0) {
+			yield { type: "turn_complete", assistantMessage, toolResults: [] };
+			return;
+		}
 
 		// Loop detection: check if the model is repeating the exact same tool calls
 		const callSignature = toolCalls.map((tc) => `${tc.function.name}:${tc.function.arguments}`).join("|");
@@ -172,12 +176,22 @@ export async function* run(
 			toolResults.push(await executeTool(tc, config.tools));
 		}
 
-		// Emit results in original tool call order
+		// Emit results in original tool call order and collect tool result messages
+		const toolResultMessages: Message[] = [];
 		for (const tc of toolCalls) {
 			const entry = toolResults.find((r) => r.tc.id === tc.id)!;
 			yield { type: "tool_result", id: tc.id, result: entry.result };
-			context.push({ role: "tool", tool_call_id: tc.id, name: tc.function.name, content: entry.result.content });
+			const toolMsg: Message = {
+				role: "tool",
+				tool_call_id: tc.id,
+				name: tc.function.name,
+				content: entry.result.content,
+			};
+			context.push(toolMsg);
+			toolResultMessages.push(toolMsg);
 		}
+
+		yield { type: "turn_complete", assistantMessage, toolResults: toolResultMessages };
 
 		// Grounding: after side-effect tools, nudge the model to verify its changes
 		if (sideEffectCalls.length > 0) {

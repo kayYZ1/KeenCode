@@ -123,6 +123,8 @@ export interface TextInputProps extends BaseProps {
 	cursorPosition?: number;
 	/** Text color */
 	color?: string;
+	/** Background color */
+	bgColor?: string;
 	/** Placeholder text color */
 	placeholderColor?: string;
 	/** Cursor style (block for normal mode, bar for insert mode) */

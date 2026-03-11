@@ -1,4 +1,4 @@
-import { toAnsi } from "@/tui/core/primitives/color.ts";
+import { toAnsi, toBgAnsi } from "@/tui/core/primitives/color.ts";
 import { splitTextWithOffsets, wrapText, wrapTextWithOffsets } from "@/tui/core/primitives/wrap-text.ts";
 import type { CursorStyle, ElementHandler, Position, TextInputInstance } from "../types/index.ts";
 import type { LayoutHandler } from "./index.ts";
@@ -144,8 +144,10 @@ export const TextInputElement: ElementHandler<TextInputInstance> = (instance, co
 
 	const positions: Position[] = [];
 	const colorToUse = isPlaceholder ? instance.props.placeholderColor : instance.props.color;
-	const defaultAnsi = colorToUse ? toAnsi(colorToUse) : null;
-	const mentionAnsi = toAnsi("cyan") ?? "\x1b[36m";
+	const fgAnsi = colorToUse ? toAnsi(colorToUse) : null;
+	const bgAnsi = instance.props.bgColor ? toBgAnsi(instance.props.bgColor) : null;
+	const defaultAnsi = (fgAnsi || bgAnsi) ? `${bgAnsi ?? ""}${fgAnsi ?? ""}` : null;
+	const mentionAnsi = `${bgAnsi ?? ""}${toAnsi("cyan") ?? "\x1b[36m"}`;
 
 	for (let lineIdx = 0; lineIdx < displayEntries.length; lineIdx++) {
 		const entry = displayEntries[lineIdx];

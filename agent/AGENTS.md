@@ -7,7 +7,9 @@ The application entry point: ties together the TUI, core agent logic, and API pa
 ```
 agent/
 ├── index.ts              # Application entry point (imports app.tsx)
-└── app.tsx               # Main application: config, UI components, agent loop integration
+├── app.tsx               # Main application: config, UI components, agent loop integration
+└── hooks/
+    └── project-files.ts  # useProjectFiles hook (git ls-files / directory walk for file indexing)
 ```
 
 ## Key Concepts

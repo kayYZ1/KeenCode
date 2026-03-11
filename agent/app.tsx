@@ -1,7 +1,7 @@
 import { run as runAgent } from "@/core/agent.ts";
-import type { Message } from "@/api/types.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
+import { entriesToMessages, type Entry, SessionManager } from "@/core/sessions/index.ts";
 import { run } from "@/tui/render/index.ts";
 import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
 import {
@@ -84,6 +84,12 @@ interface UIMessage {
 
 const COMMANDS: CommandPaletteItem[] = [
 	{ id: "new-chat", title: "New Chat", description: "Start a new conversation", keywords: ["clear", "reset"] },
+	{
+		id: "threads",
+		title: "Threads",
+		description: "Switch to a previous session",
+		keywords: ["sessions", "history"],
+	},
 	{ id: "quit", title: "Quit", description: "Exit the agent", keywords: ["exit", "close"] },
 ];
 
@@ -146,19 +152,21 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
 	const showDiff = tool.diff && shouldShowDiff(tool.diff);
 	const diffSummary = tool.diff && !showDiff ? summarizeDiff(tool.diff) : null;
+
+	const header = (
+		<Box flexDirection="row" gap={1}>
+			<Text color="yellow" bold>{tool.name}</Text>
+			<Text color="gray">{tool.input}</Text>
+			{diffSummary && <Text color="gray">({diffSummary})</Text>}
+		</Box>
+	);
+
+	if (!showDiff && !output) return header;
+
 	return (
 		<Box flexDirection="column" gap={1}>
-			<Box flexDirection="row" gap={1}>
-				<Text color="yellow" bold>{tool.name}</Text>
-				<Text color="gray">{tool.input}</Text>
-				{diffSummary && <Text color="gray">({diffSummary})</Text>}
-			</Box>
-			{showDiff && <DiffView diff={tool.diff!} />}
-			{!tool.diff && output && (
-				<Box flexDirection="row">
-					<Text color="gray">{output}</Text>
-				</Box>
-			)}
+			{header}
+			{showDiff ? <DiffView diff={tool.diff!} /> : <Text color="gray">{output}</Text>}
 		</Box>
 	);
 }
@@ -167,6 +175,8 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 	if (!tool.output) return null;
 	switch (tool.name) {
 		case "read_file":
+		case "write_file":
+		case "edit_file":
 			return null;
 		case "glob": {
 			const files = tool.output.split("\n").filter(Boolean);
@@ -179,8 +189,12 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 				fileSet.size !== 1 ? "s" : ""
 			}`;
 		}
+		case "bash": {
+			const firstLine = tool.output.split("\n")[0];
+			return firstLine.length > 120 ? firstLine.slice(0, 120) + "..." : firstLine;
+		}
 		default:
-			return tool.output.length > 200 ? tool.output.slice(0, 200) + "..." : tool.output;
+			return tool.output.length > 120 ? tool.output.slice(0, 120) + "..." : tool.output;
 	}
 }
 
@@ -198,17 +212,23 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 		);
 	}
 
+	const hasText = !!msg.content?.trim();
+	const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
+	if (!hasText && !hasToolCalls) return null;
+
 	return (
-		<Box flexDirection="column" gap={1}>
+		<Box flexDirection="column">
+			{hasText
+				? (
+					<Box flexDirection="row" gap={1}>
+						<Text color="blue" bold>
+							●
+						</Text>
+						<Markdown flex>{msg.content}</Markdown>
+					</Box>
+				)
+				: null}
 			{msg.toolCalls?.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
-			{msg.content && (
-				<Box flexDirection="row" gap={1}>
-					<Text color="blue" bold>
-						●
-					</Text>
-					<Markdown flex>{msg.content}</Markdown>
-				</Box>
-			)}
 		</Box>
 	);
 }
@@ -217,7 +237,37 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 // Main App
 // ---------------------------------------------------------------------------
 
-function App({ onQuit }: { onQuit: () => void }) {
+function entriesToUIMessages(entries: Entry[]): UIMessage[] {
+	const messages: UIMessage[] = [];
+	const toolCallIdMap = new Map<string, UIToolCall>();
+
+	for (const entry of entries) {
+		if (entry.type === "message" && entry.role === "user" && typeof entry.content === "string") {
+			messages.push({ role: "user", content: entry.content });
+		} else if (entry.type === "message" && entry.role === "assistant") {
+			const toolCalls: UIToolCall[] = entry.toolCalls?.map((tc) => {
+				const uiTc: UIToolCall = {
+					name: tc.function.name,
+					input: formatToolInput(tc.function.name, tc.function.arguments),
+					output: "",
+				};
+				toolCallIdMap.set(tc.id, uiTc);
+				return uiTc;
+			}) ?? [];
+			messages.push({
+				role: "agent",
+				content: typeof entry.content === "string" ? entry.content : "",
+				toolCalls,
+			});
+		} else if (entry.type === "tool_result") {
+			const tc = toolCallIdMap.get(entry.toolCallId);
+			if (tc) tc.output = entry.content;
+		}
+	}
+	return messages;
+}
+
+function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: SessionManager }) {
 	const input = useSignal("");
 	const cursor = useSignal(0);
 	const mode = useSignal<VimMode>("INSERT");
@@ -227,7 +277,7 @@ function App({ onQuit }: { onQuit: () => void }) {
 	const totalCost = useSignal(0);
 	const sessionId = useSignal(0);
 	const uiMessages = useSignal<UIMessage[]>([]);
-	const conversationHistory = useSignal<Message[]>([]);
+	const session = useSignal<SessionManager>(initialSession);
 	const abortController = useSignal<AbortController | null>(null);
 	const escPrimed = useSignal(false);
 
@@ -255,7 +305,6 @@ function App({ onQuit }: { onQuit: () => void }) {
 		if (!value.trim() || isLoading.value) return;
 
 		uiMessages.value = [...uiMessages.value, { role: "user", content: value }];
-		conversationHistory.value = [...conversationHistory.value, { role: "user", content: value }];
 		input.value = "";
 		cursor.value = 0;
 		isLoading.value = true;
@@ -264,17 +313,22 @@ function App({ onQuit }: { onQuit: () => void }) {
 		abortController.value = ac;
 
 		(async () => {
-			let currentText = "";
-			const currentToolCalls: UIToolCall[] = [];
-			const toolCallState = new Map<string, { name: string; args: string }>();
+			// Append user message to session and build LLM context
+			await session.value.append({ type: "message", role: "user", content: value });
+			const messages = entriesToMessages(session.value.getEntries());
 
-			const events = runAgent(conversationHistory.value, {
+			let currentText = "";
+			let currentToolCalls: UIToolCall[] = [];
+			const toolCallState = new Map<string, { name: string; args: string }>();
+			let currentMsgIndex = -1;
+
+			const events = runAgent(messages, {
 				provider,
 				tools,
 				model,
 				systemPrompt: SYSTEM_PROMPT,
 				temperature: 0.6,
-				contextLimit: { maxTokens: 100_000, preserveRecentTurns: 4 },
+				contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
 				signal: ac.signal,
 			});
 
@@ -283,7 +337,12 @@ function App({ onQuit }: { onQuit: () => void }) {
 					case "text_delta": {
 						statusText.value = "Writing...";
 						currentText += event.content;
-						updateAgentMessage(uiMessages, currentText, currentToolCalls);
+						currentMsgIndex = updateAgentMessage(
+							uiMessages,
+							currentText,
+							currentToolCalls,
+							currentMsgIndex,
+						);
 						break;
 					}
 					case "tool_call_start": {
@@ -304,7 +363,12 @@ function App({ onQuit }: { onQuit: () => void }) {
 								input: formatToolInput(tc.name, tc.args),
 								output: "",
 							});
-							updateAgentMessage(uiMessages, currentText, currentToolCalls);
+							currentMsgIndex = updateAgentMessage(
+								uiMessages,
+								currentText,
+								currentToolCalls,
+								currentMsgIndex,
+							);
 						}
 						break;
 					}
@@ -319,7 +383,12 @@ function App({ onQuit }: { onQuit: () => void }) {
 									diff: event.result.meta?.diff,
 								};
 							}
-							updateAgentMessage(uiMessages, currentText, currentToolCalls);
+							currentMsgIndex = updateAgentMessage(
+								uiMessages,
+								currentText,
+								currentToolCalls,
+								currentMsgIndex,
+							);
 						}
 						break;
 					}
@@ -342,9 +411,31 @@ function App({ onQuit }: { onQuit: () => void }) {
 								}
 							});
 						}
-						// Reset for next LLM round (after tool execution)
-						currentText = "";
 						statusText.value = "Thinking...";
+						break;
+					}
+					case "turn_complete": {
+						const am = event.assistantMessage;
+						await session.value.append({
+							type: "message",
+							role: "assistant",
+							content: am.content,
+							...(am.tool_calls?.length && { toolCalls: am.tool_calls }),
+						});
+
+						for (const tr of event.toolResults) {
+							await session.value.append({
+								type: "tool_result",
+								toolCallId: tr.tool_call_id!,
+								toolName: tr.name!,
+								content: tr.content!,
+							});
+						}
+
+						// Reset so the next LLM round gets its own agent message
+						currentText = "";
+						currentToolCalls = [];
+						currentMsgIndex = -1;
 						break;
 					}
 					case "error": {
@@ -359,15 +450,6 @@ function App({ onQuit }: { onQuit: () => void }) {
 				if (ac.signal.aborted) break;
 			}
 
-			// Sync final assistant content back to conversation history
-			const lastUI = uiMessages.value[uiMessages.value.length - 1];
-			if (lastUI?.role === "agent" && lastUI.content) {
-				conversationHistory.value = [
-					...conversationHistory.value,
-					{ role: "assistant", content: lastUI.content },
-				];
-			}
-
 			isLoading.value = false;
 			abortController.value = null;
 		})();
@@ -375,6 +457,24 @@ function App({ onQuit }: { onQuit: () => void }) {
 
 	const fileMentionStart = useSignal<number | null>(null);
 	const projectFiles = useProjectFiles();
+
+	const threadItems = useSignal<CommandPaletteItem[]>([]);
+
+	const threadsPalette = useCommandPalette({
+		items: threadItems.value,
+		openKey: null,
+		maxResults: 20,
+		onSelect: (item) => {
+			if (isLoading.value) return;
+			SessionManager.open(item.id).then((sm) => {
+				session.value = sm;
+				uiMessages.value = entriesToUIMessages(sm.getEntries());
+				tokenCount.value = 0;
+				totalCost.value = 0;
+				sessionId.value++;
+			});
+		},
+	});
 
 	const filePalette = useCommandPalette({
 		items: projectFiles.files.value,
@@ -401,13 +501,28 @@ function App({ onQuit }: { onQuit: () => void }) {
 
 	const palette = useCommandPalette({
 		items: COMMANDS,
+		mode,
 		onSelect: (item) => {
 			if (item.id === "new-chat") {
 				uiMessages.value = [];
-				conversationHistory.value = [];
 				tokenCount.value = 0;
 				totalCost.value = 0;
 				sessionId.value++;
+				session.value = SessionManager.create(Deno.cwd());
+			} else if (item.id === "threads") {
+				SessionManager.listSummaries(Deno.cwd()).then((summaries) => {
+					threadItems.value = summaries.map((s) => {
+						const date = new Date(s.timestamp);
+						const label = date.toLocaleString();
+						const preview = s.firstUserMessage
+							? s.firstUserMessage.length > 45
+								? s.firstUserMessage.slice(0, 45) + "…"
+								: s.firstUserMessage
+							: "(empty session)";
+						return { id: s.path, title: preview, description: label, keywords: [s.id] };
+					});
+					threadsPalette.openPalette();
+				});
 			} else if (item.id === "quit") {
 				onQuit();
 			}
@@ -478,6 +593,7 @@ function App({ onQuit }: { onQuit: () => void }) {
 
 			<CommandPalette palette={palette} />
 			<CommandPalette palette={filePalette} placeholder="Search files..." borderLabel="Files" />
+			<CommandPalette palette={threadsPalette} placeholder="Search threads..." borderLabel="Threads" width={80} />
 		</Box>
 	);
 }
@@ -490,15 +606,17 @@ function updateAgentMessage(
 	uiMessages: { value: UIMessage[] },
 	content: string,
 	toolCalls: UIToolCall[],
-) {
+	msgIndex: number,
+): number {
 	const msgs = [...uiMessages.value];
-	const last = msgs[msgs.length - 1];
-	if (last?.role === "agent") {
-		msgs[msgs.length - 1] = { ...last, content, toolCalls: [...toolCalls] };
+	if (msgIndex >= 0 && msgIndex < msgs.length) {
+		msgs[msgIndex] = { ...msgs[msgIndex], content, toolCalls: [...toolCalls] };
 	} else {
+		msgIndex = msgs.length;
 		msgs.push({ role: "agent", content, toolCalls: [...toolCalls] });
 	}
 	uiMessages.value = msgs;
+	return msgIndex;
 }
 
 function formatToolInput(name: string, args: string): string {
@@ -506,16 +624,18 @@ function formatToolInput(name: string, args: string): string {
 		const parsed = JSON.parse(args);
 		switch (name) {
 			case "read_file":
+			case "write_file":
+			case "edit_file":
 				return parsed.path ?? args;
 			case "glob":
-				return parsed.pattern ?? args;
 			case "grep":
 				return parsed.pattern ?? args;
 			case "bash":
 				return parsed.command ?? args;
 			default:
 				return Object.entries(parsed)
-					.map(([k, v]) => `${k}=${JSON.stringify(v)}`)
+					.filter(([, v]) => typeof v === "string" && v.length < 100)
+					.map(([k, v]) => `${k}=${v}`)
 					.join(" ");
 		}
 	} catch {
@@ -523,4 +643,5 @@ function formatToolInput(name: string, args: string): string {
 	}
 }
 
-run((quit) => <App onQuit={quit} />);
+const initialSession = SessionManager.create(Deno.cwd());
+run((quit) => <App onQuit={quit} initialSession={initialSession} />);

@@ -1,3 +1,4 @@
+import type { Signal } from "@preact/signals-core";
 import { inputManager, type KeyEvent } from "../../core/input.ts";
 import { getHookKey, hasCleanup, setCleanup, useSignal } from "./signals.ts";
 
@@ -8,6 +9,8 @@ export interface CommandPaletteItem {
 	keywords?: string[];
 }
 
+export type VimMode = "NORMAL" | "INSERT";
+
 export interface UseCommandPaletteOptions {
 	items: CommandPaletteItem[];
 	/** Key to open the palette. Set to `null` to disable keyboard-triggered open (use openPalette() instead). */
@@ -16,6 +19,8 @@ export interface UseCommandPaletteOptions {
 	onSelect?: (item: CommandPaletteItem) => void;
 	/** Called when the palette is dismissed via Escape */
 	onDismiss?: () => void;
+	/** If provided, the palette will only open when the text input is in NORMAL mode */
+	mode?: Signal<VimMode>;
 }
 
 function filterItems(items: CommandPaletteItem[], query: string, maxResults: number): CommandPaletteItem[] {
@@ -52,6 +57,10 @@ export function useCommandPalette(options: UseCommandPaletteOptions) {
 
 			if (!open.value) {
 				if (openKey !== null && event.key === openKey && !event.ctrl && !event.meta) {
+					// Only open palette if mode is not provided (no vim mode) or if in NORMAL mode
+					if (opts.mode && opts.mode.value !== "NORMAL") {
+						return false;
+					}
 					open.value = true;
 					query.value = "";
 					cursor.value = 0;

@@ -16,6 +16,7 @@ core/
 │   ├── read.ts           # File reading
 │   ├── write.ts          # File writing
 │   ├── edit.ts           # File editing (find-and-replace)
+│   ├── diff.ts           # Unified diff generation (unifiedDiff utility)
 │   ├── grep.ts           # Text search (ripgrep-style)
 │   └── glob.ts           # File pattern matching
 └── tests/

@@ -88,6 +88,7 @@ export class SessionManager {
 			cwd,
 		};
 
+		SessionManager.cleanup(cwd).catch(() => {});
 		return new SessionManager({ header, entries: [] }, path, true);
 	}
 
@@ -120,6 +121,14 @@ export class SessionManager {
 		}
 
 		return files.sort().reverse();
+	}
+
+	/** Delete old sessions beyond the `keep` most recent. Returns count deleted. */
+	static async cleanup(cwd: string, keep = 5): Promise<number> {
+		const files = await SessionManager.list(cwd);
+		const toDelete = files.slice(keep);
+		await Promise.all(toDelete.map((f) => Deno.remove(f)));
+		return toDelete.length;
 	}
 
 	/** List session summaries (id, timestamp, first user message) for this cwd. */

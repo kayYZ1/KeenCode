@@ -120,7 +120,7 @@ export class Terminal {
 				if (sequence === "\x1b[0m") {
 					currentStyle = "";
 				} else {
-					currentStyle = sequence;
+					currentStyle += sequence;
 				}
 				i = j + 1;
 			} else if (char !== undefined) {

@@ -337,7 +337,12 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 					case "text_delta": {
 						statusText.value = "Writing...";
 						currentText += event.content;
-						currentMsgIndex = updateAgentMessage(uiMessages, currentText, currentToolCalls, currentMsgIndex);
+						currentMsgIndex = updateAgentMessage(
+							uiMessages,
+							currentText,
+							currentToolCalls,
+							currentMsgIndex,
+						);
 						break;
 					}
 					case "tool_call_start": {
@@ -358,7 +363,12 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 								input: formatToolInput(tc.name, tc.args),
 								output: "",
 							});
-							currentMsgIndex = updateAgentMessage(uiMessages, currentText, currentToolCalls, currentMsgIndex);
+							currentMsgIndex = updateAgentMessage(
+								uiMessages,
+								currentText,
+								currentToolCalls,
+								currentMsgIndex,
+							);
 						}
 						break;
 					}
@@ -373,7 +383,12 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 									diff: event.result.meta?.diff,
 								};
 							}
-							currentMsgIndex = updateAgentMessage(uiMessages, currentText, currentToolCalls, currentMsgIndex);
+							currentMsgIndex = updateAgentMessage(
+								uiMessages,
+								currentText,
+								currentToolCalls,
+								currentMsgIndex,
+							);
 						}
 						break;
 					}

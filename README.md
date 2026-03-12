@@ -1,8 +1,8 @@
-# TinyAg2
+# KeenCode
 
 A terminal-based coding agent with a custom TUI framework, built with Deno and TypeScript.
 
-TinyAg2 is a monorepo containing a terminal UI framework powered by a custom JSX runtime and Yoga flexbox layout, an
+KeenCode is a monorepo containing a terminal UI framework powered by a custom JSX runtime and Yoga flexbox layout, an
 OpenAI-compatible LLM API layer with streaming support, and an agentic loop with built-in tools — all wired together
 into an interactive coding assistant that runs entirely in your terminal.
 
@@ -27,8 +27,8 @@ into an interactive coding assistant that runs entirely in your terminal.
 ### Setup
 
 ```bash
-git clone https://github.com/kayYZ1/TinyAG2.git
-cd TinyAG2
+git clone https://github.com/kayyz1/KeenCode.git
+cd KeenCode
 ```
 
 Set your environment variables:
@@ -145,7 +145,7 @@ deno task fmt          # Format code
 deno task fmt:check    # Check formatting
 deno task lint         # Lint
 deno task test         # Run tests
-deno task build        # Build binary (dist/tinyag)
+deno task build        # Build binary (dist/keencode)
 deno task version      # Show current version
 deno task version:bump <patch|minor|major>  # Bump version
 ```

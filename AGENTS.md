@@ -37,7 +37,7 @@ tui/      (leaf - no internal deps)
 
 ### Build & Version
 
-- **Build binary**: `deno task build` (compiles to `dist/tinyag`)
+- **Build binary**: `deno task build` (compiles to `dist/keencode`)
 - **Show version**: `deno task version`
 - **Bump version**: `deno task version:bump <patch|minor|major>`
 

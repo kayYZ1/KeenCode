@@ -1,6 +1,6 @@
 import { join } from "@std/path/join";
 
-const AGENT_DIR = ".tinyag2";
+const AGENT_DIR = ".keencode";
 
 function getUsername(): string | undefined {
 	return Deno.env.get("USER") ?? Deno.env.get("USERNAME");

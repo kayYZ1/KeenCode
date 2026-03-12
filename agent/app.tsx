@@ -3,7 +3,16 @@ import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { entriesToMessages, type Entry, SessionManager } from "@/core/sessions/index.ts";
 import { run } from "@/tui/render/index.ts";
-import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput } from "@/tui/render/components.tsx";
+import {
+	Box,
+	CommandPalette,
+	Markdown,
+	ScrollArea,
+	Spinner,
+	Text,
+	TextInput,
+	WelcomeScreen,
+} from "@/tui/render/components.tsx";
 import {
 	type DisplayDiffLine,
 	formatDiffForDisplay,
@@ -15,6 +24,7 @@ import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
 import { inputManager } from "@/tui/core/input.ts";
 import { useProjectFiles } from "./hooks/project-files.ts";
+import { VERSION } from "@/version.ts";
 import "@std/dotenv/load";
 
 // ---------------------------------------------------------------------------
@@ -548,9 +558,13 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		<Box flex flexDirection="column" padding={1}>
 			<StatusBar model={model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
-			<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
-				{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
-			</ScrollArea>
+			{uiMessages.value.length === 0
+				? <WelcomeScreen version={VERSION} />
+				: (
+					<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
+						{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
+					</ScrollArea>
+				)}
 
 			<Box height={1} />
 			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>

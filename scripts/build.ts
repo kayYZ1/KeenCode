@@ -29,20 +29,20 @@ async function build() {
 	const hash = await getGitHash();
 	const fullVersion = `${VERSION}+${hash}`;
 
-	console.log(`Building tinyag v${fullVersion}`);
+	console.log(`Building keencode v${fullVersion}`);
 
 	await run([
 		"deno",
 		"compile",
 		"--allow-all",
 		"--output",
-		"dist/tinyag",
+		"dist/keencode",
 		"agent/index.ts",
 	]);
 
-	const stat = await Deno.stat("dist/tinyag");
+	const stat = await Deno.stat("dist/keencode");
 	const sizeMB = (stat.size / (1024 * 1024)).toFixed(1);
-	console.log(`\n✓ Built dist/tinyag (${sizeMB} MB)`);
+	console.log(`\n✓ Built dist/keencode (${sizeMB} MB)`);
 	console.log(`  Version: ${fullVersion}`);
 }
 

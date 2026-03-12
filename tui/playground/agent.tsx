@@ -77,7 +77,7 @@ function StatusBar({ tokenCount }: { tokenCount: number }) {
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={2}>
 				<Text bold color="cyan">
-					TinyAgent
+					KeenCode
 				</Text>
 			</Box>
 			<Box flexDirection="row" gap={2}>

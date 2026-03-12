@@ -7,12 +7,10 @@ export interface CommandPaletteProps {
 	width?: number;
 	placeholder?: string;
 	borderLabel?: string;
-	bgColor?: string;
 }
 
 export function CommandPalette(props: CommandPaletteProps) {
-	const { palette, width = 60, placeholder = "Type a command...", borderLabel = "Commands", bgColor = "#181825" } =
-		props;
+	const { palette, width = 60, placeholder = "Type a command...", borderLabel = "Commands" } = props;
 
 	if (!palette.open.value) return <Box />;
 
@@ -24,7 +22,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 				borderColor="white"
 				borderLabel={borderLabel}
 				borderLabelColor="white"
-				bgColor={bgColor}
+				bgColor="default"
 				flexDirection="column"
 				padding={1}
 				gap={1}
@@ -34,7 +32,6 @@ export function CommandPalette(props: CommandPaletteProps) {
 					cursorPosition={palette.cursor.value}
 					placeholder={placeholder}
 					placeholderColor="gray"
-					bgColor={bgColor}
 					focused
 					width={width - 4}
 				/>
@@ -43,14 +40,14 @@ export function CommandPalette(props: CommandPaletteProps) {
 						const isSelected = i === palette.selectedIndex.value;
 						return (
 							<Box key={item.id} flexDirection="row" gap={1}>
-								<Text color={isSelected ? "cyan" : "gray"} bgColor={bgColor} bold={isSelected}>
+								<Text color={isSelected ? "cyan" : "gray"} bold={isSelected}>
 									{isSelected ? ">" : " "}
 								</Text>
-								<Text color={isSelected ? "white" : "gray"} bgColor={bgColor} bold={isSelected}>
+								<Text color={isSelected ? "white" : "gray"} bold={isSelected}>
 									{item.title}
 								</Text>
 								{item.description && (
-									<Text color="gray" bgColor={bgColor} italic>
+									<Text color="gray" italic>
 										{item.description}
 									</Text>
 								)}
@@ -58,7 +55,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 						);
 					})}
 					{palette.matches.length === 0 && (
-						<Text color="gray" bgColor={bgColor} italic>
+						<Text color="gray" italic>
 							No matching commands
 						</Text>
 					)}

@@ -71,17 +71,16 @@ export const BoxElement: ElementHandler<BoxInstance> = (instance, context): Posi
 	const h = Math.round(instance.yogaNode.getComputedHeight());
 	const positions: Position[] = [];
 
-	if (instance.props.bgColor) {
-		const bg = toBgAnsi(instance.props.bgColor);
-		if (bg) {
-			const borderW = instance.props.border ? 1 : 0;
-			for (let row = borderW; row < h - borderW; row++) {
-				positions.push({
-					x: x + borderW,
-					y: y + row,
-					text: `${bg}${" ".repeat(w - borderW * 2)}\x1b[49m`,
-				});
-			}
+	const bgDefault = instance.props.bgColor === "default";
+	const bg = instance.props.bgColor && !bgDefault ? toBgAnsi(instance.props.bgColor) : null;
+	if (bg || bgDefault) {
+		const borderW = instance.props.border ? 1 : 0;
+		for (let row = borderW; row < h - borderW; row++) {
+			positions.push({
+				x: x + borderW,
+				y: y + row,
+				text: bg ? `${bg}${" ".repeat(w - borderW * 2)}\x1b[49m` : " ".repeat(w - borderW * 2),
+			});
 		}
 	}
 
@@ -101,7 +100,13 @@ export const BoxElement: ElementHandler<BoxInstance> = (instance, context): Posi
 		);
 	}
 
-	positions.push(...instance.children.flatMap((child) => context.renderInstance(child, x, y)));
+	const childPositions = instance.children.flatMap((child) => context.renderInstance(child, x, y));
+	if (bg) {
+		for (const pos of childPositions) {
+			pos.text = `${bg}${pos.text}`;
+		}
+	}
+	positions.push(...childPositions);
 
 	return positions;
 };

@@ -105,22 +105,28 @@ export class SessionManager {
 		return new SessionManager(session, path);
 	}
 
-	/** List all session files for this cwd, most recent first. */
+	/** List all session files for this cwd, most recently active first. */
 	static async list(cwd: string): Promise<string[]> {
 		const dir = sessionDir(cwd);
-		const files: string[] = [];
+		const files: { path: string; mtime: number }[] = [];
 
 		try {
 			for await (const entry of Deno.readDir(dir)) {
 				if (entry.isFile && entry.name.endsWith(".jsonl")) {
-					files.push(join(dir, entry.name));
+					try {
+						const path = join(dir, entry.name);
+						const stat = await Deno.stat(path);
+						files.push({ path, mtime: stat.mtime?.getTime() ?? 0 });
+					} catch {
+						// Skip files that vanish between readDir and stat
+					}
 				}
 			}
 		} catch {
 			return [];
 		}
 
-		return files.sort().reverse();
+		return files.sort((a, b) => b.mtime - a.mtime).map((f) => f.path);
 	}
 
 	/** Delete old sessions beyond the `keep` most recent. Returns count deleted. */

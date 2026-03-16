@@ -7,6 +7,7 @@ export const bashTool = defineTool({
 	name: "bash",
 	description:
 		"Execute a shell command and return its output. Use for running programs, installing packages, or any system operation. Commands run in the current working directory.",
+	requiresPermission: true,
 	parameters: {
 		type: "object",
 		properties: {

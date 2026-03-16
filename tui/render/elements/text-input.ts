@@ -89,6 +89,36 @@ function formatLineWithMentions(
 	return result;
 }
 
+export function calculateCursorPosition(
+	cursorPos: number,
+	width: number,
+	lines: string[],
+	useWordWrap: boolean,
+): { line: number; col: number } {
+	let cursorLine = 0;
+	let cursorCol = 0;
+	if (useWordWrap) {
+		let charCount = 0;
+		for (let i = 0; i < lines.length; i++) {
+			const line = lines[i] ?? "";
+			const lineLen = line.length;
+			const lineEnd = charCount + lineLen + (i < lines.length - 1 ? 1 : 0);
+			if (cursorPos <= charCount + lineLen) {
+				cursorLine = i;
+				cursorCol = cursorPos - charCount;
+				break;
+			}
+			charCount = lineEnd;
+			cursorLine = i;
+			cursorCol = lineLen;
+		}
+	} else {
+		cursorLine = Math.floor(cursorPos / width);
+		cursorCol = cursorPos % width;
+	}
+	return { line: cursorLine, col: cursorCol };
+}
+
 export const TextInputElement: ElementHandler<TextInputInstance> = (instance, context): Position[] => {
 	const x = context.parentX + Math.round(instance.yogaNode.getComputedLeft());
 	const y = context.parentY + Math.round(instance.yogaNode.getComputedTop());
@@ -113,28 +143,7 @@ export const TextInputElement: ElementHandler<TextInputInstance> = (instance, co
 	const mentions = !isPlaceholder ? findMentions(value) : [];
 
 	// Calculate cursor line and column
-	let cursorLine = 0;
-	let cursorCol = 0;
-	if (useWordWrap) {
-		// For word-wrapped text, find cursor position by walking through lines
-		let charCount = 0;
-		for (let i = 0; i < lines.length; i++) {
-			const line = lines[i] ?? "";
-			const lineLen = line.length;
-			const lineEnd = charCount + lineLen + (i < lines.length - 1 ? 1 : 0); // +1 for space between words
-			if (cursorPos <= charCount + lineLen) {
-				cursorLine = i;
-				cursorCol = cursorPos - charCount;
-				break;
-			}
-			charCount = lineEnd;
-			cursorLine = i;
-			cursorCol = lineLen;
-		}
-	} else {
-		cursorLine = Math.floor(cursorPos / width);
-		cursorCol = cursorPos % width;
-	}
+	const { line: cursorLine, col: cursorCol } = calculateCursorPosition(cursorPos, width, lines, useWordWrap);
 
 	// Trim or pad lines to fit height
 	const displayEntries = linesWithOffsets.slice(0, height);

@@ -1,4 +1,4 @@
-import { run as runAgent } from "@/core/agent.ts";
+import { type PermissionDecision, run as runAgent } from "@/core/agent.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { entriesToMessages, type Entry, SessionManager } from "@/core/sessions/index.ts";
@@ -104,6 +104,128 @@ const COMMANDS: CommandPaletteItem[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Permissions
+// ---------------------------------------------------------------------------
+
+type PermissionAction = "once" | "chat" | "session" | "deny";
+
+interface PendingPermission {
+	toolName: string;
+	args: unknown;
+	resolve: (action: PermissionAction) => void;
+}
+
+const PERMISSION_OPTIONS: { id: PermissionAction; title: string; description: string }[] = [
+	{ id: "once", title: "Allow Once", description: "Run this command only" },
+	{ id: "chat", title: "Allow for Chat", description: "Allow this tool for the rest of this chat" },
+	{ id: "session", title: "Allow for Session", description: "Allow this tool until app exit" },
+	{ id: "deny", title: "Deny", description: "Block this command" },
+];
+
+const appSessionAllowed = new Set<string>();
+
+function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
+	const selectedIndex = useSignal(0);
+	const pendingRef = useSignal<PendingPermission | null>(null);
+	pendingRef.value = pending;
+
+	const permKey = getHookKey("perm-");
+	if (!hasCleanup(permKey)) {
+		const cleanup = inputManager.onKeyGlobal((event) => {
+			const current = pendingRef.value;
+			if (!current) return false;
+
+			if (event.key === "up") {
+				selectedIndex.value = Math.max(0, selectedIndex.value - 1);
+				return true;
+			}
+			if (event.key === "down") {
+				selectedIndex.value = Math.min(PERMISSION_OPTIONS.length - 1, selectedIndex.value + 1);
+				return true;
+			}
+			if (event.key === "enter") {
+				current.resolve(PERMISSION_OPTIONS[selectedIndex.value].id);
+				selectedIndex.value = 0;
+				return true;
+			}
+			return true;
+		});
+		setCleanup(permKey, cleanup);
+	}
+
+	if (!pending) return <Box />;
+
+	const commandPreview = typeof (pending.args as Record<string, unknown>)?.command === "string"
+		? (pending.args as Record<string, unknown>).command as string
+		: JSON.stringify(pending.args);
+	const displayCmd = commandPreview.length > 80 ? commandPreview.slice(0, 80) + "…" : commandPreview;
+
+	return (
+		<Box position="absolute" bottom={4} left={1}>
+			<Box
+				border="round"
+				borderColor="yellow"
+				borderLabel="Permission Required"
+				borderLabelColor="yellow"
+				bgColor="default"
+				flexDirection="column"
+				padding={1}
+				gap={1}
+				width={65}
+			>
+				<Box flexDirection="row" gap={1}>
+					<Text color="yellow" bold>
+						{pending.toolName}
+					</Text>
+					<Text color="gray">{displayCmd}</Text>
+				</Box>
+				<Box flexDirection="column">
+					{PERMISSION_OPTIONS.map((option, i) => {
+						const isSelected = i === selectedIndex.value;
+						return (
+							<Box key={option.id} flexDirection="row" gap={1}>
+								<Text color={isSelected ? "cyan" : "gray"} bold={isSelected}>
+									{isSelected ? ">" : " "}
+								</Text>
+								<Text color={isSelected ? "white" : "gray"} bold={isSelected}>
+									{option.title}
+								</Text>
+								<Text color="gray" italic>
+									{option.description}
+								</Text>
+							</Box>
+						);
+					})}
+				</Box>
+			</Box>
+		</Box>
+	);
+}
+
+// ---------------------------------------------------------------------------
+// Status
+// ---------------------------------------------------------------------------
+
+type AgentStatus =
+	| { kind: "thinking" }
+	| { kind: "writing" }
+	| { kind: "running_tool"; toolName: string }
+	| { kind: "awaiting_permission" };
+
+function formatStatus(status: AgentStatus): string {
+	switch (status.kind) {
+		case "thinking":
+			return "Thinking...";
+		case "writing":
+			return "Writing...";
+		case "running_tool":
+			return `Running ${status.toolName}...`;
+		case "awaiting_permission":
+			return "Awaiting permission...";
+	}
+}
+
+// ---------------------------------------------------------------------------
 // Components
 // ---------------------------------------------------------------------------
 
@@ -163,20 +285,14 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const showDiff = tool.diff && shouldShowDiff(tool.diff);
 	const diffSummary = tool.diff && !showDiff ? summarizeDiff(tool.diff) : null;
 
-	const header = (
-		<Box flexDirection="row" gap={1}>
-			<Text color="yellow" bold>{tool.name}</Text>
-			<Text color="gray">{tool.input}</Text>
-			{diffSummary && <Text color="gray">({diffSummary})</Text>}
-		</Box>
-	);
-
-	if (!showDiff && !output) return header;
-
 	return (
-		<Box flexDirection="column" gap={1}>
-			{header}
-			{showDiff ? <DiffView diff={tool.diff!} /> : <Text color="gray">{output}</Text>}
+		<Box flexDirection="column">
+			<Box flexDirection="row" gap={1}>
+				<Text color="yellow" bold>{tool.name}</Text>
+				<Text color="gray">{tool.input}</Text>
+				{diffSummary && <Text color="gray">({diffSummary})</Text>}
+			</Box>
+			{showDiff ? <DiffView diff={tool.diff!} /> : output ? <Text color="gray">{output}</Text> : null}
 		</Box>
 	);
 }
@@ -227,7 +343,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	if (!hasText && !hasToolCalls) return null;
 
 	return (
-		<Box flexDirection="column">
+		<Box flexDirection="column" gap={1}>
 			{hasText
 				? (
 					<Box flexDirection="row" gap={1}>
@@ -256,11 +372,7 @@ function entriesToUIMessages(entries: Entry[]): UIMessage[] {
 			messages.push({ role: "user", content: entry.content });
 		} else if (entry.type === "message" && entry.role === "assistant") {
 			const toolCalls: UIToolCall[] = entry.toolCalls?.map((tc) => {
-				const uiTc: UIToolCall = {
-					name: tc.function.name,
-					input: formatToolInput(tc.function.name, tc.function.arguments),
-					output: "",
-				};
+				const uiTc = createUIToolCall(tc.function.name, tc.function.arguments);
 				toolCallIdMap.set(tc.id, uiTc);
 				return uiTc;
 			}) ?? [];
@@ -282,7 +394,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 	const cursor = useSignal(0);
 	const mode = useSignal<VimMode>("INSERT");
 	const isLoading = useSignal(false);
-	const statusText = useSignal("Thinking...");
+	const status = useSignal<AgentStatus>({ kind: "thinking" });
 	const tokenCount = useSignal(0);
 	const totalCost = useSignal(0);
 	const sessionId = useSignal(0);
@@ -290,6 +402,29 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 	const session = useSignal<SessionManager>(initialSession);
 	const abortController = useSignal<AbortController | null>(null);
 	const escPrimed = useSignal(false);
+
+	const chatAllowed = useSignal(new Set<string>());
+	const pendingPermission = useSignal<PendingPermission | null>(null);
+
+	const onPermissionRequest = (toolName: string, args: unknown): Promise<PermissionDecision> => {
+		if (appSessionAllowed.has(toolName) || chatAllowed.value.has(toolName)) {
+			return Promise.resolve("allow");
+		}
+
+		status.value = { kind: "awaiting_permission" };
+		return new Promise<PermissionAction>((resolve) => {
+			pendingPermission.value = { toolName, args, resolve };
+		}).then((action) => {
+			pendingPermission.value = null;
+			status.value = { kind: "thinking" };
+			if (action === "chat") {
+				chatAllowed.value = new Set([...chatAllowed.value, toolName]);
+			} else if (action === "session") {
+				appSessionAllowed.add(toolName);
+			}
+			return action === "deny" ? "deny" as const : "allow" as const;
+		});
+	};
 
 	// Double-Esc to cancel streaming (only when loading, so it doesn't conflict with vim mode toggle)
 	const cancelKey = getHookKey("cancel-");
@@ -318,151 +453,144 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		input.value = "";
 		cursor.value = 0;
 		isLoading.value = true;
-		statusText.value = "Thinking...";
+		status.value = { kind: "thinking" };
+
 		const ac = new AbortController();
 		abortController.value = ac;
+		void runSubmission(value, ac);
+	};
 
-		(async () => {
-			// Append user message to session and build LLM context
-			await session.value.append({ type: "message", role: "user", content: value });
-			const messages = entriesToMessages(session.value.getEntries());
+	const runSubmission = async (value: string, ac: AbortController) => {
+		await session.value.append({ type: "message", role: "user", content: value });
+		const messages = entriesToMessages(session.value.getEntries());
 
-			let currentText = "";
-			let currentToolCalls: UIToolCall[] = [];
-			const toolCallState = new Map<string, { name: string; args: string }>();
-			let currentMsgIndex = -1;
+		const draft = { text: "", toolCalls: [] as UIToolCall[], msgIndex: -1 };
+		const toolCallState = new Map<string, { name: string; args: string }>();
 
-			const events = runAgent(messages, {
-				provider,
-				tools,
-				model,
-				systemPrompt: SYSTEM_PROMPT,
-				temperature: 0.6,
-				contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
-				signal: ac.signal,
-			});
+		const syncDraft = () => {
+			const msgs = [...uiMessages.value];
+			const entry: UIMessage = { role: "agent", content: draft.text, toolCalls: [...draft.toolCalls] };
+			if (draft.msgIndex >= 0 && draft.msgIndex < msgs.length) {
+				msgs[draft.msgIndex] = entry;
+			} else {
+				draft.msgIndex = msgs.length;
+				msgs.push(entry);
+			}
+			uiMessages.value = msgs;
+		};
 
-			for await (const event of events) {
-				switch (event.type) {
-					case "text_delta": {
-						statusText.value = "Writing...";
-						currentText += event.content;
-						currentMsgIndex = updateAgentMessage(
-							uiMessages,
-							currentText,
-							currentToolCalls,
-							currentMsgIndex,
-						);
-						break;
-					}
-					case "tool_call_start": {
-						statusText.value = `Running ${event.name}...`;
-						toolCallState.set(event.id, { name: event.name, args: "" });
-						break;
-					}
-					case "tool_call_args_delta": {
-						const tc = toolCallState.get(event.id);
-						if (tc) tc.args += event.args;
-						break;
-					}
-					case "tool_call_end": {
-						const tc = toolCallState.get(event.id);
-						if (tc) {
-							currentToolCalls.push({
-								name: tc.name,
-								input: formatToolInput(tc.name, tc.args),
-								output: "",
-							});
-							currentMsgIndex = updateAgentMessage(
-								uiMessages,
-								currentText,
-								currentToolCalls,
-								currentMsgIndex,
-							);
-						}
-						break;
-					}
-					case "tool_result": {
-						const tc = toolCallState.get(event.id);
-						if (tc) {
-							const idx = currentToolCalls.findIndex((t) => t.name === tc.name && !t.output);
-							if (idx !== -1) {
-								currentToolCalls[idx] = {
-									...currentToolCalls[idx],
-									output: event.result.content,
-									diff: event.result.meta?.diff,
-								};
-							}
-							currentMsgIndex = updateAgentMessage(
-								uiMessages,
-								currentText,
-								currentToolCalls,
-								currentMsgIndex,
-							);
-						}
-						break;
-					}
-					case "message_complete": {
-						if (event.usage) {
-							tokenCount.value += event.usage.prompt_tokens + event.usage.completion_tokens;
-							// Some providers return cost directly in usage
-							if (event.usage.cost) {
-								totalCost.value += event.usage.cost;
-							}
-						}
-						if (event.generationId) {
-							const sid = sessionId.value;
-							provider.getGenerationStats(event.generationId).then((stats) => {
-								if (!stats || sessionId.value !== sid) return;
-								if (stats.totalCost !== null) totalCost.value += stats.totalCost;
-								// Fallback: use generation stats for tokens if streaming didn't provide usage
-								if (!event.usage && stats.promptTokens !== null && stats.completionTokens !== null) {
-									tokenCount.value += stats.promptTokens + stats.completionTokens;
-								}
-							});
-						}
-						statusText.value = "Thinking...";
-						break;
-					}
-					case "turn_complete": {
-						const am = event.assistantMessage;
-						await session.value.append({
-							type: "message",
-							role: "assistant",
-							content: am.content,
-							...(am.tool_calls?.length && { toolCalls: am.tool_calls }),
-						});
+		const events = runAgent(messages, {
+			provider,
+			tools,
+			model,
+			systemPrompt: SYSTEM_PROMPT,
+			temperature: 0.6,
+			contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
+			signal: ac.signal,
+			onPermissionRequest,
+		});
 
-						for (const tr of event.toolResults) {
-							await session.value.append({
-								type: "tool_result",
-								toolCallId: tr.tool_call_id!,
-								toolName: tr.name!,
-								content: tr.content!,
-							});
-						}
+		for await (const event of events) {
+			let shouldSync = false;
 
-						// Reset so the next LLM round gets its own agent message
-						currentText = "";
-						currentToolCalls = [];
-						currentMsgIndex = -1;
-						break;
-					}
-					case "error": {
-						if (ac.signal.aborted) break;
-						uiMessages.value = [
-							...uiMessages.value,
-							{ role: "agent", content: `**Error:** ${event.error.message}` },
-						];
-						break;
-					}
+			switch (event.type) {
+				case "text_delta": {
+					status.value = { kind: "writing" };
+					draft.text += event.content;
+					shouldSync = true;
+					break;
 				}
-				if (ac.signal.aborted) break;
+				case "tool_call_start": {
+					status.value = { kind: "running_tool", toolName: event.name };
+					toolCallState.set(event.id, { name: event.name, args: "" });
+					break;
+				}
+				case "tool_call_args_delta": {
+					const tc = toolCallState.get(event.id);
+					if (tc) tc.args += event.args;
+					break;
+				}
+				case "tool_call_end": {
+					const tc = toolCallState.get(event.id);
+					if (tc) {
+						draft.toolCalls.push(createUIToolCall(tc.name, tc.args));
+						shouldSync = true;
+					}
+					break;
+				}
+				case "tool_result": {
+					const tc = toolCallState.get(event.id);
+					if (tc) {
+						const idx = draft.toolCalls.findIndex((t) => t.name === tc.name && !t.output);
+						if (idx !== -1) {
+							draft.toolCalls[idx] = {
+								...draft.toolCalls[idx],
+								output: event.result.content,
+								diff: event.result.meta?.diff,
+							};
+						}
+						shouldSync = true;
+					}
+					break;
+				}
+				case "message_complete": {
+					if (event.usage) {
+						tokenCount.value += event.usage.prompt_tokens + event.usage.completion_tokens;
+						if (event.usage.cost) totalCost.value += event.usage.cost;
+					}
+					if (event.generationId) {
+						const sid = sessionId.value;
+						provider.getGenerationStats(event.generationId).then((stats) => {
+							if (!stats || sessionId.value !== sid) return;
+							if (stats.totalCost !== null) totalCost.value += stats.totalCost;
+							if (!event.usage && stats.promptTokens !== null && stats.completionTokens !== null) {
+								tokenCount.value += stats.promptTokens + stats.completionTokens;
+							}
+						});
+					}
+					status.value = { kind: "thinking" };
+					break;
+				}
+				case "turn_complete": {
+					const am = event.assistantMessage;
+					await session.value.append({
+						type: "message",
+						role: "assistant",
+						content: am.content,
+						...(am.tool_calls?.length && { toolCalls: am.tool_calls }),
+					});
+
+					for (const tr of event.toolResults) {
+						await session.value.append({
+							type: "tool_result",
+							toolCallId: tr.tool_call_id!,
+							toolName: tr.name!,
+							content: tr.content!,
+						});
+					}
+
+					draft.text = "";
+					draft.toolCalls = [];
+					draft.msgIndex = -1;
+					toolCallState.clear();
+					break;
+				}
+				case "error": {
+					if (ac.signal.aborted) break;
+					uiMessages.value = [
+						...uiMessages.value,
+						{ role: "agent", content: `**Error:** ${event.error.message}` },
+					];
+					break;
+				}
 			}
 
-			isLoading.value = false;
-			abortController.value = null;
-		})();
+			if (shouldSync) syncDraft();
+			if (ac.signal.aborted) break;
+		}
+
+		isLoading.value = false;
+		abortController.value = null;
 	};
 
 	const fileMentionStart = useSignal<number | null>(null);
@@ -517,6 +645,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				uiMessages.value = [];
 				tokenCount.value = 0;
 				totalCost.value = 0;
+				chatAllowed.value = new Set();
 				sessionId.value++;
 				session.value = SessionManager.create(Deno.cwd());
 			} else if (item.id === "threads") {
@@ -574,7 +703,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 					cursorStyle={cursorStyle}
 					placeholder="Awaiting instructions..."
 					placeholderColor="gray"
-					focused
+					focused={!pendingPermission.value}
 				/>
 			</Box>
 
@@ -584,7 +713,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 						<>
 							<Spinner color="cyan" />
 							<Text color="gray" bold italic>
-								{statusText.value}
+								{formatStatus(status.value)}
 							</Text>
 							{escPrimed.value
 								? (
@@ -605,6 +734,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				</Text>
 			</Box>
 
+			<PermissionDialog pending={pendingPermission.value} />
 			<CommandPalette palette={palette} />
 			<CommandPalette palette={filePalette} placeholder="Search files..." borderLabel="Files" />
 			<CommandPalette palette={threadsPalette} placeholder="Search threads..." borderLabel="Threads" width={80} />
@@ -616,24 +746,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 // Helpers
 // ---------------------------------------------------------------------------
 
-function updateAgentMessage(
-	uiMessages: { value: UIMessage[] },
-	content: string,
-	toolCalls: UIToolCall[],
-	msgIndex: number,
-): number {
-	const msgs = [...uiMessages.value];
-	if (msgIndex >= 0 && msgIndex < msgs.length) {
-		msgs[msgIndex] = { ...msgs[msgIndex], content, toolCalls: [...toolCalls] };
-	} else {
-		msgIndex = msgs.length;
-		msgs.push({ role: "agent", content, toolCalls: [...toolCalls] });
-	}
-	uiMessages.value = msgs;
-	return msgIndex;
-}
-
-function formatToolInput(name: string, args: string): string {
+function summarizeToolArgs(name: string, args: string): string {
 	try {
 		const parsed = JSON.parse(args);
 		switch (name) {
@@ -642,6 +755,7 @@ function formatToolInput(name: string, args: string): string {
 			case "edit_file":
 				return parsed.path ?? args;
 			case "glob":
+				return parsed.filePattern ?? args;
 			case "grep":
 				return parsed.pattern ?? args;
 			case "bash":
@@ -655,6 +769,10 @@ function formatToolInput(name: string, args: string): string {
 	} catch {
 		return args;
 	}
+}
+
+function createUIToolCall(name: string, args: string): UIToolCall {
+	return { name, input: summarizeToolArgs(name, args), output: "" };
 }
 
 const initialSession = SessionManager.create(Deno.cwd());

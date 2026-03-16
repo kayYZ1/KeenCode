@@ -379,6 +379,9 @@ export class Renderer {
 		this.rootInstance.yogaNode.setHeight(this.terminal.height);
 		this.rootInstance.yogaNode.calculateLayout(this.terminal.width, this.terminal.height, Y.DIRECTION_LTR);
 
+		// Hide cursor before painting to prevent flicker during frame updates
+		this.terminal.hideCursor();
+
 		this.terminal.render(this.renderInstance(this.rootInstance, 0, 0));
 
 		const cursor = getPendingCursor();
@@ -386,8 +389,6 @@ export class Renderer {
 			this.terminal.setCursorPosition(cursor.x, cursor.y);
 			this.terminal.setCursorStyle(cursor.style ?? "bar");
 			this.terminal.showCursor();
-		} else {
-			this.terminal.hideCursor();
 		}
 	}
 

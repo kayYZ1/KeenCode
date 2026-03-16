@@ -1,14 +1,14 @@
 import { assertEquals, assertExists } from "@std/assert";
 import { join } from "@std/path/join";
 import { entriesToMessages, SessionManager } from "@/core/sessions/manager.ts";
-import type { Entry, MessageEntry, ToolResultEntry } from "@/core/sessions/types.ts";
+import type { Entry, MessageEntry } from "@/core/sessions/types.ts";
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
 function withTempHome(
-	fn: (tmpHome: string) => Promise<void>,
+	fn: (tmpHome: string) => void | Promise<void>,
 ): () => Promise<void> {
 	return async () => {
 		const tmpHome = await Deno.makeTempDir();
@@ -32,7 +32,7 @@ function withTempHome(
 
 Deno.test(
 	"SessionManager.create - creates a session with correct header fields",
-	withTempHome(async () => {
+	withTempHome(() => {
 		const sm = SessionManager.create("/tmp/project");
 		const header = sm.getHeader();
 

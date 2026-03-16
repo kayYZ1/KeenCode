@@ -18,6 +18,14 @@ export type AgentEvent =
 	| { type: "error"; error: Error };
 
 // ---------------------------------------------------------------------------
+// Permissions
+// ---------------------------------------------------------------------------
+
+export type PermissionDecision = "allow" | "deny";
+
+export type PermissionRequestFn = (toolName: string, args: unknown) => Promise<PermissionDecision>;
+
+// ---------------------------------------------------------------------------
 // Agent config
 // ---------------------------------------------------------------------------
 
@@ -30,6 +38,7 @@ export interface AgentConfig {
 	temperature?: number;
 	contextLimit?: TrimOptions;
 	signal?: AbortSignal;
+	onPermissionRequest?: PermissionRequestFn;
 }
 
 const DEFAULT_MAX_TOOL_ROUNDS = 30;
@@ -168,12 +177,14 @@ export async function* run(
 		const toolResults: { tc: ToolCall; result: ToolResult }[] = [];
 
 		if (readonlyCalls.length > 0) {
-			const results = await Promise.all(readonlyCalls.map((tc) => executeTool(tc, config.tools)));
+			const results = await Promise.all(
+				readonlyCalls.map((tc) => executeTool(tc, config.tools, config.onPermissionRequest)),
+			);
 			toolResults.push(...results);
 		}
 
 		for (const tc of sideEffectCalls) {
-			toolResults.push(await executeTool(tc, config.tools));
+			toolResults.push(await executeTool(tc, config.tools, config.onPermissionRequest));
 		}
 
 		// Emit results in original tool call order and collect tool result messages
@@ -223,7 +234,11 @@ function isRetryableError(err: unknown): boolean {
 		msg.includes("ETIMEDOUT");
 }
 
-async function executeTool(tc: ToolCall, tools: ToolRegistry): Promise<{ tc: ToolCall; result: ToolResult }> {
+async function executeTool(
+	tc: ToolCall,
+	tools: ToolRegistry,
+	onPermissionRequest?: PermissionRequestFn,
+): Promise<{ tc: ToolCall; result: ToolResult }> {
 	const tool = tools.get(tc.function.name);
 	if (!tool) {
 		return { tc, result: enrichError(tc.function.name, `Unknown tool: ${tc.function.name}`, "unknown_tool") };
@@ -234,6 +249,20 @@ async function executeTool(tc: ToolCall, tools: ToolRegistry): Promise<{ tc: Too
 		parsedArgs = JSON.parse(tc.function.arguments);
 	} catch {
 		return { tc, result: enrichError(tc.function.name, tc.function.arguments, "invalid_args") };
+	}
+
+	if (tool.requiresPermission && onPermissionRequest) {
+		const decision = await onPermissionRequest(tc.function.name, parsedArgs);
+		if (decision === "deny") {
+			return {
+				tc,
+				result: {
+					content:
+						`Permission denied by user for tool "${tc.function.name}". Do not retry this command without asking the user first.`,
+					isError: true,
+				},
+			};
+		}
 	}
 
 	try {

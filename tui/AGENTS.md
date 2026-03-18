@@ -51,8 +51,15 @@ tui/
 │   ├── scroll-area.tsx         # Scroll area demo
 │   ├── spinner.tsx             # Spinner demo
 │   ├── text-input.tsx          # Text input demo
-│   └── text-styling.tsx        # Text styling demo
-└── tests/                      # Tests
+│   ├── text-styling.tsx        # Text styling demo
+│   └── welcome.tsx             # Welcome screen demo
+└── tests/
+    ├── input-parsing.test.ts   # Input parsing tests
+    ├── jsx-runtime.test.ts     # JSX runtime tests
+    ├── parse-diff.test.ts      # Diff parser tests
+    ├── text-input-cursor.test.ts # Text input cursor tests
+    ├── text-utils.test.ts      # Text utility tests
+    └── wrap-text.test.ts       # Text wrapping tests
 ```
 
 ## Key Concepts

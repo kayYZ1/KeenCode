@@ -11,7 +11,7 @@ Terminal-based coding agent with custom TUI framework.
 ├── tui/          # Terminal UI framework (see tui/AGENTS.md)
 ├── scripts/      # Build and version bump scripts
 ├── dist/         # Compiled binary output
-├── version.ts    # Version constant (e.g., "0.2.3")
+├── version.ts    # Version constant (e.g., "0.3.3")
 ├── deno.json     # Deno configuration with tasks and import maps
 ```
 
@@ -32,7 +32,7 @@ tui/      (leaf - no internal deps)
 - **Format code**: `deno task fmt`
 - **Check formatting**: `deno task fmt:check`
 - **Lint**: `deno task lint`
-- **Run tests**: `deno task test` (requires `--allow-read --allow-write`)
+- **Run tests**: `deno task test` (requires `--allow-read --allow-write --allow-env --allow-run`)
 - **Run agent**: `deno task agent` (requires `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL_URL` in `.env`)
 
 ### Build & Version
@@ -40,6 +40,15 @@ tui/      (leaf - no internal deps)
 - **Build binary**: `deno task build` (compiles to `dist/keencode`)
 - **Show version**: `deno task version`
 - **Bump version**: `deno task version:bump <patch|minor|major>`
+
+### Releasing
+
+Tag-based releases via GitHub Actions (`.github/workflows/release.yml`):
+
+1. `deno task version:bump <patch|minor|major>`
+2. Commit and push to `main`
+3. `git tag v<version> && git push --tags`
+4. CI builds Linux binary and creates GitHub Release
 
 ### Development (Playgrounds)
 
@@ -58,8 +67,8 @@ tui/      (leaf - no internal deps)
 Use path aliases for cross-package imports:
 
 ```typescript
-import { Anthropic } from "@/api/providers/anthropic.ts";
-import { Agent } from "@/core/agent.ts";
+import { CompletionsProvider } from "@/api/providers/completions.ts";
+import { run } from "@/core/agent.ts";
 import { Box, Text } from "@/tui/render/components.tsx";
 ```
 

@@ -1,0 +1,39 @@
+name: Release
+
+on:
+    push:
+        tags:
+            - "v*"
+
+permissions:
+    contents: write
+
+jobs:
+    release:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - uses: denoland/setup-deno@v2
+              with:
+                  deno-version: v2.x
+
+            - name: Cache Deno dependencies
+              uses: actions/cache@v4
+              with:
+                  path: ~/.cache/deno
+                  key: deno-${{ hashFiles('deno.lock') }}
+                  restore-keys: deno-
+
+            - name: Verify checks
+              run: deno task fmt:check && deno task lint && deno task test
+
+            - name: Build binary
+              run: deno task build
+
+            - name: Create GitHub Release
+              uses: softprops/action-gh-release@v2
+              with:
+                  files: dist/keencode
+                  generate_release_notes: true

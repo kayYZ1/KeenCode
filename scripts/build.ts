@@ -34,7 +34,11 @@ async function build() {
 	await run([
 		"deno",
 		"compile",
-		"--allow-all",
+		"--allow-env",
+		"--allow-read",
+		"--allow-write",
+		"--allow-run",
+		"--allow-net",
 		"--output",
 		"dist/keencode",
 		"agent/index.ts",

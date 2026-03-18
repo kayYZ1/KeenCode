@@ -19,10 +19,19 @@ core/
 │   ├── diff.ts           # Unified diff generation (unifiedDiff utility)
 │   ├── grep.ts           # Text search (ripgrep-style)
 │   └── glob.ts           # File pattern matching
+├── sessions/             # Session persistence
+│   ├── index.ts          # Public exports
+│   ├── manager.ts        # Session CRUD (create, list, load, save, delete)
+│   ├── paths.ts          # Session storage paths (~/.keencode/sessions/)
+│   └── types.ts          # Session types
 └── tests/
     ├── agent.test.ts     # Agent loop tests
+    ├── bash.test.ts      # Bash tool tests
     ├── context.test.ts   # Context trimming tests
-    └── edit.test.ts      # Edit tool tests
+    ├── edit.test.ts      # Edit tool tests
+    ├── read.test.ts      # Read tool tests
+    ├── session.test.ts   # Session management tests
+    └── write.test.ts     # Write tool tests
 ```
 
 ## Key Concepts
@@ -76,6 +85,14 @@ Built-in tools (`defaultTools`): `bash`, `read_file`, `write_file`, `edit_file`,
 1. Group messages into turns (system, user, assistant+tool results)
 2. If over budget: summarize old tool results (preview first 3 lines)
 3. If still over: drop oldest droppable turns (preserving recent turns)
+
+### Session Management
+
+`sessions/manager.ts` provides persistent conversation storage:
+
+- Sessions stored as JSON in `~/.keencode/sessions/`
+- CRUD operations: create, list, load, save, delete
+- Each session contains message history and metadata
 
 ## Dependencies
 

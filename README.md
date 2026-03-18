@@ -18,6 +18,24 @@ into an interactive coding assistant that runs entirely in your terminal.
 - **Markdown rendering** — Inline markdown display in the terminal with syntax highlighting
 - **Command palette** — Fuzzy-searchable command menu
 
+## Install
+
+Download the latest Linux binary from [GitHub Releases](https://github.com/kayYZ1/KeenCode/releases/latest):
+
+```bash
+curl -L https://github.com/kayYZ1/KeenCode/releases/latest/download/keencode -o keencode
+chmod +x keencode
+sudo mv keencode /usr/local/bin/
+```
+
+KeenCode requires the following environment variables:
+
+```bash
+export LLM_API_KEY="your-api-key"
+export LLM_BASE_URL="https://openrouter.ai/api/v1"
+export LLM_MODEL_URL="moonshotai/kimi-k2.5"
+```
+
 ## Quick Start
 
 ### Prerequisites
@@ -27,7 +45,7 @@ into an interactive coding assistant that runs entirely in your terminal.
 ### Setup
 
 ```bash
-git clone https://github.com/kayyz1/KeenCode.git
+git clone https://github.com/kayYZ1/KeenCode.git
 cd KeenCode
 ```
 
@@ -49,7 +67,7 @@ deno task agent
 
 ```
 ├── api/        # LLM provider integrations (OpenAI-compatible)
-├── core/       # Agent loop, tool system, context management
+├── core/       # Agent loop, tool system, session management
 ├── agent/      # Application entry point and UI
 ├── tui/        # Custom terminal UI framework
 ├── scripts/    # Build and version bump scripts
@@ -96,6 +114,9 @@ The agent loop is an async generator (`run()`) that streams `AgentEvent`s:
 | `edit_file`  | Edit files (find-and-replace)    |
 | `grep`       | Search files with regex patterns |
 | `glob`       | Find files by glob pattern       |
+
+**Session persistence** — Conversations are saved to `~/.keencode/sessions/` with automatic session management (create,
+list, resume, delete).
 
 ### `tui/` — Terminal UI Framework
 
@@ -165,6 +186,20 @@ deno task playground:spinner          # Spinner animations
 deno task playground:text-input       # Text input with vim mode
 deno task playground:text-styling     # Text styling
 ```
+
+## Releasing
+
+Releases are automated via GitHub Actions. To create a new release:
+
+```bash
+deno task version:bump patch   # or minor/major
+git add version.ts
+git commit -m "v$(deno task version 2>/dev/null)"
+git tag "v$(deno task version 2>/dev/null)"
+git push && git push --tags
+```
+
+This triggers CI to build the Linux binary and publish a GitHub Release.
 
 ## License
 

@@ -1,8 +1,6 @@
 import type { Node as YogaNode } from "yoga-layout";
 import type { HookStore } from "../hooks/signals.ts";
 
-export type CursorStyle = "block" | "bar";
-
 /** Primitive children that render as text */
 export type PrimitiveChild = string | number;
 
@@ -125,8 +123,6 @@ export interface TextInputProps extends BaseProps {
 	color?: string;
 	/** Placeholder text color */
 	placeholderColor?: string;
-	/** Cursor style (block for normal mode, bar for insert mode) */
-	cursorStyle?: CursorStyle;
 }
 
 export interface SpinnerProps extends BaseProps {

@@ -61,6 +61,7 @@ type AgentEvent =
 	| { type: "tool_call_end"; id: string }
 	| { type: "tool_result"; id: string; result: ToolResult }
 	| { type: "message_complete"; usage?: Usage; generationId?: string }
+	| { type: "turn_complete"; assistantMessage: Message; toolResults: Message[] }
 	| { type: "error"; error: Error };
 ```
 

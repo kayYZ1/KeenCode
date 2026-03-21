@@ -1,3 +1,5 @@
+import { bgRgb, fgRgb } from "@/tui/core/ansi.ts";
+
 const BASIC_COLORS: Record<string, string> = {
 	black: "\x1b[30m",
 	red: "\x1b[31m",
@@ -42,7 +44,7 @@ export function toAnsi(color: string): string | null {
 	if (color.startsWith("#")) {
 		const rgb = hexToRgb(color);
 		if (rgb) {
-			return `\x1b[38;2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
+			return fgRgb(rgb[0], rgb[1], rgb[2]);
 		}
 	}
 
@@ -87,7 +89,7 @@ export function toBgAnsi(color: string): string | null {
 	if (color.startsWith("#")) {
 		const rgb = hexToRgb(color);
 		if (rgb) {
-			return `\x1b[48;2;${rgb[0]};${rgb[1]};${rgb[2]}m`;
+			return bgRgb(rgb[0], rgb[1], rgb[2]);
 		}
 	}
 

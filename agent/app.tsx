@@ -24,6 +24,7 @@ import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
 import { inputManager } from "@/tui/core/input.ts";
 import { useProjectFiles } from "./hooks/project-files.ts";
+import { config } from "./config.ts";
 import { VERSION } from "@/version.ts";
 import "@std/dotenv/load";
 
@@ -31,20 +32,20 @@ import "@std/dotenv/load";
 // Config
 // ---------------------------------------------------------------------------
 
-function requireEnv(name: string): string {
-	const value = Deno.env.get(name);
-	if (!value) {
-		console.error(`Set ${name} in .env file`);
-		Deno.exit(1);
-	}
-	return value;
+const apiKey = Deno.env.get("LLM_API_KEY");
+if (!apiKey) {
+	console.error("Missing API key. Set it with: export LLM_API_KEY=<your-openrouter-key>");
+	Deno.exit(1);
 }
 
-const apiKey = requireEnv("LLM_API_KEY");
-const baseURL = requireEnv("LLM_BASE_URL");
-const model = requireEnv("LLM_MODEL_URL");
+const branchName = await new Deno.Command("git", {
+	args: ["branch", "--show-current"],
+	stdout: "piped",
+	stderr: "null",
+})
+	.output().then((o) => new TextDecoder().decode(o.stdout).trim()).catch(() => "");
 
-const provider = new CompletionsProvider({ apiKey, baseURL });
+const provider = new CompletionsProvider({ apiKey, baseURL: config.baseURL });
 const tools = createToolRegistry(defaultTools);
 
 const SYSTEM_PROMPT =
@@ -52,8 +53,14 @@ const SYSTEM_PROMPT =
 
 ## Available Tools
 
-- Read files, search code with grep, write/edit files, run shell commands
-- Use tools to accomplish tasks efficiently. Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety concerns.
+- **bash** — Execute shell commands
+- **read_file** — Read file contents
+- **write_file** — Write/create files
+- **edit_file** — Edit files with find-and-replace
+- **grep** — Search files with regex patterns
+- **glob** — Find files by glob pattern
+
+Use tools to accomplish tasks efficiently. Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety concerns.
 
 ## Code Style
 
@@ -62,6 +69,15 @@ const SYSTEM_PROMPT =
 - Prefer const over let; use ternaries or early returns instead of reassignment
 - Use functional array methods (flatMap, filter, map) over for loops
 - Avoid unnecessary destructuring; use dot notation to preserve context
+
+## Self-Review
+
+After completing a task, run \`git diff\` to review all changes you made. Check for:
+- Bugs, typos, or logic errors
+- Inaccuracies or inconsistencies with the surrounding code
+- Simplification opportunities (dead code, unnecessary abstractions)
+
+Fix any issues found before reporting the task as done.
 
 ## Project Context
 
@@ -229,24 +245,48 @@ function formatStatus(status: AgentStatus): string {
 // Components
 // ---------------------------------------------------------------------------
 
-function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount: number; totalCost: number }) {
+const CONTEXT_WINDOW = 200_000;
+const TOKEN_BAR_WIDTH = 20;
+
+const CONTEXT_WINDOW_LABEL = "200k";
+
+function formatTokens(n: number): string {
+	if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+	if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
+	return String(n);
+}
+
+function TokenBar({ tokenCount }: { tokenCount: number }) {
+	const ratio = Math.min(tokenCount / CONTEXT_WINDOW, 1);
+	const filled = Math.round(ratio * TOKEN_BAR_WIDTH);
+	const empty = TOKEN_BAR_WIDTH - filled;
+	const color = ratio >= 0.8 ? "red" : ratio >= 0.5 ? "yellow" : "green";
+
+	return (
+		<Box flexDirection="row" gap={1}>
+			<Text color="gray">tokens</Text>
+			{filled > 0 && <Text color={color}>{"█".repeat(filled)}</Text>}
+			{empty > 0 && <Text color="gray">{"░".repeat(empty)}</Text>}
+			<Text color={color}>{formatTokens(tokenCount)}</Text>
+			<Text color="gray">/ {CONTEXT_WINDOW_LABEL}</Text>
+		</Box>
+	);
+}
+
+function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: number }) {
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={1}>
 				<Text bold color="cyan">
 					KeenCode
 				</Text>
-				<Text color="gray">│</Text>
-				<Text color="yellow">{model}</Text>
+				{branchName && <Text color="yellow">on {branchName}</Text>}
 			</Box>
 			<Box flexDirection="row" gap={2}>
-				<Box flexDirection="row" gap={1}>
-					<Text color="gray">tokens:</Text>
-					<Text color="white">{tokenCount}</Text>
-				</Box>
+				<TokenBar tokenCount={tokenCount} />
 				<Box flexDirection="row" gap={1}>
 					<Text color="gray">cost:</Text>
-					<Text color="green">{totalCost.toFixed(4)}$</Text>
+					<Text color="green">{totalCost.toFixed(2)}$</Text>
 				</Box>
 			</Box>
 		</Box>
@@ -340,7 +380,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 
 	const hasText = !!msg.content?.trim();
 	const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
-	if (!hasText && !hasToolCalls) return null;
+	if (!hasText && !hasToolCalls) return <Box />;
 
 	return (
 		<Box flexDirection="column" gap={1}>
@@ -455,9 +495,15 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		isLoading.value = true;
 		status.value = { kind: "thinking" };
 
+		const cwd = Deno.cwd();
+		const resolved = value.replace(/(^|(?<=\s))@([^\s]+)/g, (match, _prefix, path) => {
+			if (path.startsWith("/")) return match;
+			return `${_prefix}@${cwd}/${path}`;
+		});
+
 		const ac = new AbortController();
 		abortController.value = ac;
-		void runSubmission(value, ac);
+		void runSubmission(resolved, ac);
 	};
 
 	const runSubmission = async (value: string, ac: AbortController) => {
@@ -482,7 +528,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		const events = runAgent(messages, {
 			provider,
 			tools,
-			model,
+			model: config.model,
 			systemPrompt: SYSTEM_PROMPT,
 			temperature: 0.6,
 			contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
@@ -668,7 +714,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		},
 	});
 
-	const { cursorStyle } = useTextInput({
+	useTextInput({
 		value: input,
 		cursorPosition: cursor,
 		mode,
@@ -685,7 +731,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 
 	return (
 		<Box flex flexDirection="column" padding={1}>
-			<StatusBar model={model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
+			<StatusBar tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			{uiMessages.value.length === 0
 				? <WelcomeScreen version={VERSION} />
@@ -700,7 +746,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
-					cursorStyle={cursorStyle}
 					placeholder="Awaiting instructions..."
 					placeholderColor="gray"
 					focused={!pendingPermission.value}

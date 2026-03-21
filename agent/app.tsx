@@ -48,44 +48,7 @@ const branchName = await new Deno.Command("git", {
 const provider = new CompletionsProvider({ apiKey, baseURL: config.baseURL });
 const tools = createToolRegistry(defaultTools);
 
-const SYSTEM_PROMPT =
-	`You are a coding assistant running in a terminal. You have access to tools for reading files, writing files, searching code, and running shell commands.
-
-## Available Tools
-
-- **bash** — Execute shell commands
-- **read_file** — Read file contents
-- **write_file** — Write/create files
-- **edit_file** — Edit files with find-and-replace
-- **grep** — Search files with regex patterns
-- **glob** — Find files by glob pattern
-
-Use tools to accomplish tasks efficiently. Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety concerns.
-
-## Code Style
-
-- Keep functions short and focused
-- Avoid try/catch where possible
-- Prefer const over let; use ternaries or early returns instead of reassignment
-- Use functional array methods (flatMap, filter, map) over for loops
-- Avoid unnecessary destructuring; use dot notation to preserve context
-
-## Self-Review
-
-After completing a task, run \`git diff\` to review all changes you made. Check for:
-- Bugs, typos, or logic errors
-- Inaccuracies or inconsistencies with the surrounding code
-- Simplification opportunities (dead code, unnecessary abstractions)
-
-Fix any issues found before reporting the task as done.
-
-## Project Context
-
-- When starting a new task, check for AGENTS.md in the project root and relevant subdirectories
-- Read any AGENTS.md files you find to understand project-specific rules, conventions, and structure
-- Follow the instructions in those files when working on the project
-
-Be concise and direct in responses.`;
+const SYSTEM_PROMPT = await Deno.readTextFile(new URL("./system-prompt.md", import.meta.url));
 
 // ---------------------------------------------------------------------------
 // UI Types
@@ -495,15 +458,9 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		isLoading.value = true;
 		status.value = { kind: "thinking" };
 
-		const cwd = Deno.cwd();
-		const resolved = value.replace(/(^|(?<=\s))@([^\s]+)/g, (match, _prefix, path) => {
-			if (path.startsWith("/")) return match;
-			return `${_prefix}@${cwd}/${path}`;
-		});
-
 		const ac = new AbortController();
 		abortController.value = ac;
-		void runSubmission(resolved, ac);
+		void runSubmission(value, ac);
 	};
 
 	const runSubmission = async (value: string, ac: AbortController) => {

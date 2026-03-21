@@ -11,7 +11,7 @@ Terminal-based coding agent with custom TUI framework.
 ├── tui/          # Terminal UI framework (see tui/AGENTS.md)
 ├── scripts/      # Build and version bump scripts
 ├── dist/         # Compiled binary output
-├── version.ts    # Version constant (e.g., "0.3.3")
+├── version.ts    # Version constant (e.g., "0.3.5")
 ├── deno.json     # Deno configuration with tasks and import maps
 ```
 
@@ -33,7 +33,7 @@ tui/      (leaf - no internal deps)
 - **Check formatting**: `deno task fmt:check`
 - **Lint**: `deno task lint`
 - **Run tests**: `deno task test` (requires `--allow-read --allow-write --allow-env --allow-run`)
-- **Run agent**: `deno task agent` (requires `LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL_URL` in `.env`)
+- **Run agent**: `deno task agent` (requires `LLM_API_KEY` env var)
 
 ### Build & Version
 
@@ -61,6 +61,7 @@ Tag-based releases via GitHub Actions (`.github/workflows/release.yml`):
 - `deno task playground:spinner` - Spinner animations demo
 - `deno task playground:text-input` - Text input with vim mode demo
 - `deno task playground:text-styling` - Text styling demo
+- `deno task playground:welcome` - Welcome screen demo
 
 ## Import Aliases
 

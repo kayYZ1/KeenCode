@@ -28,13 +28,13 @@ chmod +x keencode
 sudo mv keencode /usr/local/bin/
 ```
 
-KeenCode requires the following environment variables:
+KeenCode requires an API key:
 
 ```bash
 export LLM_API_KEY="your-api-key"
-export LLM_BASE_URL="https://openrouter.ai/api/v1"
-export LLM_MODEL_URL="moonshotai/kimi-k2.5"
 ```
+
+By default it uses OpenRouter with `moonshotai/kimi-k2.5`. These defaults can be changed in `agent/config.ts`.
 
 ## Quick Start
 
@@ -49,12 +49,10 @@ git clone https://github.com/kayYZ1/KeenCode.git
 cd KeenCode
 ```
 
-Set your environment variables:
+Set your API key:
 
 ```bash
 export LLM_API_KEY="your-api-key"
-export LLM_BASE_URL="https://openrouter.ai/api/v1"  # optional, defaults to OpenRouter
-export LLM_MODEL_URL="moonshotai/kimi-k2.5"            # optional, defaults to kimi-k2.5
 ```
 
 ### Run
@@ -153,7 +151,7 @@ A custom terminal UI framework with:
 
 Ties everything together into the interactive terminal agent:
 
-- Status bar with model name, token count, and cost tracking
+- Status bar with git branch, token usage progress bar, and cost tracking
 - Scrollable chat history with markdown rendering
 - Streaming tool call display
 - Vim-mode text input

@@ -49,8 +49,14 @@ const SYSTEM_PROMPT =
 
 ## Available Tools
 
-- Read files, search code with grep, write/edit files, run shell commands
-- Use tools to accomplish tasks efficiently. Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety concerns.
+- **bash** — Execute shell commands
+- **read_file** — Read file contents
+- **write_file** — Write/create files
+- **edit_file** — Edit files with find-and-replace
+- **grep** — Search files with regex patterns
+- **glob** — Find files by glob pattern
+
+Use tools to accomplish tasks efficiently. Prefer automation: execute requested actions without confirmation unless blocked by missing info or safety concerns.
 
 ## Code Style
 

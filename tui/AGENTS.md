@@ -39,7 +39,8 @@ tui/
 │   │   ├── spinner.ts          # Spinner element renderer + layout
 │   │   └── scroll-area.ts      # ScrollArea element renderer + layout
 │   ├── components/
-│   │   └── command-palette.tsx  # CommandPalette component
+│   │   ├── command-palette.tsx  # CommandPalette component
+│   │   └── welcome-screen.tsx  # WelcomeScreen component
 │   └── types/
 │       └── index.ts            # TypeScript type definitions, ElementRegistry, props
 ├── playground/                 # Example apps
@@ -81,7 +82,7 @@ tui/
 - Double-buffered rendering for flicker-free updates
 - Manages character grid with styles per cell
 - Tracks cursor state to avoid redundant escape sequences
-- Methods: `render(positions)`, `clear()`, `showCursor()`, `hideCursor()`
+- Methods: `render(positions)`, `dispose()`, `showCursor()`, `hideCursor()`
 
 #### `Renderer` (render/renderer.ts)
 
@@ -133,6 +134,7 @@ All exported from `render/components.tsx`:
 - **`Spinner`** - Animated spinner (default 80ms interval, 10 frames)
 - **`ScrollArea`** - Scrollable container (extends BoxProps) with `autoScroll`, `scrollbar`, and `scrollStep`
 - **`Markdown`** - Renders markdown content as styled Text lines via `parseMarkdown()`
+- **`WelcomeScreen`** - Welcome screen with version display, re-exported from `components/welcome-screen.tsx`
 - **`CommandPalette`** - Re-exported from `components/command-palette.tsx`
 
 ## Hooks

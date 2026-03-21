@@ -1,6 +1,7 @@
+import { RESET } from "@/tui/core/ansi.ts";
 import { toAnsi } from "@/tui/core/primitives/color.ts";
 import { splitTextWithOffsets, wrapText, wrapTextWithOffsets } from "@/tui/core/primitives/wrap-text.ts";
-import type { CursorStyle, ElementHandler, Position, TextInputInstance } from "../types/index.ts";
+import type { ElementHandler, Position, TextInputInstance } from "../types/index.ts";
 import type { LayoutHandler } from "./index.ts";
 
 export const TextInputLayout: LayoutHandler<TextInputInstance> = (instance) => {
@@ -25,7 +26,6 @@ interface CursorInfo {
 	x: number;
 	y: number;
 	visible: boolean;
-	style?: CursorStyle;
 }
 
 let pendingCursor: CursorInfo | null = null;
@@ -63,7 +63,7 @@ function formatLineWithMentions(
 ): string {
 	const padded = line.slice(0, width).padEnd(width, " ");
 	if (mentions.length === 0) {
-		if (defaultAnsi) return `${defaultAnsi}${padded}\x1b[0m`;
+		if (defaultAnsi) return `${defaultAnsi}${padded}${RESET}`;
 		return padded;
 	}
 
@@ -78,14 +78,14 @@ function formatLineWithMentions(
 			if (isMention) {
 				result += `${mentionAnsi}`;
 			} else {
-				result += `\x1b[0m${defaultAnsi ?? ""}`;
+				result += `${RESET}${defaultAnsi ?? ""}`;
 			}
 			inMention = isMention;
 		}
 		result += padded[i];
 	}
 
-	result += "\x1b[0m";
+	result += RESET;
 	return result;
 }
 
@@ -162,7 +162,7 @@ export const TextInputElement: ElementHandler<TextInputInstance> = (instance, co
 			? formatLineWithMentions(entry.line, entry.startIndex, width, mentions, defaultAnsi, mentionAnsi)
 			: (() => {
 				let text = entry.line.slice(0, width).padEnd(width, " ");
-				if (defaultAnsi) text = `${defaultAnsi}${text}\x1b[0m`;
+				if (defaultAnsi) text = `${defaultAnsi}${text}${RESET}`;
 				return text;
 			})();
 
@@ -178,7 +178,6 @@ export const TextInputElement: ElementHandler<TextInputInstance> = (instance, co
 			x: x + cursorCol,
 			y: y + cursorLine,
 			visible: true,
-			style: instance.props.cursorStyle,
 		};
 	}
 

@@ -24,6 +24,7 @@ import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
 import { inputManager } from "@/tui/core/input.ts";
 import { useProjectFiles } from "./hooks/project-files.ts";
+import { config } from "./config.ts";
 import { VERSION } from "@/version.ts";
 import "@std/dotenv/load";
 
@@ -31,20 +32,13 @@ import "@std/dotenv/load";
 // Config
 // ---------------------------------------------------------------------------
 
-function requireEnv(name: string): string {
-	const value = Deno.env.get(name);
-	if (!value) {
-		console.error(`Set ${name} in .env file`);
-		Deno.exit(1);
-	}
-	return value;
+const apiKey = Deno.env.get("LLM_API_KEY");
+if (!apiKey) {
+	console.error("Missing API key. Set it with: export LLM_API_KEY=<your-openrouter-key>");
+	Deno.exit(1);
 }
 
-const apiKey = requireEnv("LLM_API_KEY");
-const baseURL = requireEnv("LLM_BASE_URL");
-const model = requireEnv("LLM_MODEL_URL");
-
-const provider = new CompletionsProvider({ apiKey, baseURL });
+const provider = new CompletionsProvider({ apiKey, baseURL: config.baseURL });
 const tools = createToolRegistry(defaultTools);
 
 const SYSTEM_PROMPT =
@@ -229,15 +223,13 @@ function formatStatus(status: AgentStatus): string {
 // Components
 // ---------------------------------------------------------------------------
 
-function StatusBar({ model, tokenCount, totalCost }: { model: string; tokenCount: number; totalCost: number }) {
+function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: number }) {
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={1}>
 				<Text bold color="cyan">
 					KeenCode
 				</Text>
-				<Text color="gray">│</Text>
-				<Text color="yellow">{model}</Text>
 			</Box>
 			<Box flexDirection="row" gap={2}>
 				<Box flexDirection="row" gap={1}>
@@ -482,7 +474,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		const events = runAgent(messages, {
 			provider,
 			tools,
-			model,
+			model: config.model,
 			systemPrompt: SYSTEM_PROMPT,
 			temperature: 0.6,
 			contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
@@ -668,7 +660,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		},
 	});
 
-	const { cursorStyle } = useTextInput({
+	useTextInput({
 		value: input,
 		cursorPosition: cursor,
 		mode,
@@ -685,7 +677,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 
 	return (
 		<Box flex flexDirection="column" padding={1}>
-			<StatusBar model={model} tokenCount={tokenCount.value} totalCost={totalCost.value} />
+			<StatusBar tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			{uiMessages.value.length === 0
 				? <WelcomeScreen version={VERSION} />
@@ -700,7 +692,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
-					cursorStyle={cursorStyle}
 					placeholder="Awaiting instructions..."
 					placeholderColor="gray"
 					focused={!pendingPermission.value}

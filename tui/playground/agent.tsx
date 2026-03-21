@@ -201,7 +201,7 @@ function Agent() {
 		},
 	});
 
-	const { cursorStyle } = useTextInput({
+	useTextInput({
 		value: input,
 		cursorPosition: cursor,
 		mode,
@@ -229,7 +229,6 @@ function Agent() {
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
-					cursorStyle={cursorStyle}
 					placeholder="Ask me anything..."
 					placeholderColor="gray"
 					focused

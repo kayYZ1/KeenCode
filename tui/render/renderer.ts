@@ -379,17 +379,17 @@ export class Renderer {
 		this.rootInstance.yogaNode.setHeight(this.terminal.height);
 		this.rootInstance.yogaNode.calculateLayout(this.terminal.width, this.terminal.height, Y.DIRECTION_LTR);
 
-		// Hide cursor before painting to prevent flicker during frame updates
-		this.terminal.hideCursor();
-
+		this.terminal.beginFrame();
 		this.terminal.render(this.renderInstance(this.rootInstance, 0, 0));
 
 		const cursor = getPendingCursor();
 		if (cursor?.visible) {
 			this.terminal.setCursorPosition(cursor.x, cursor.y);
-			this.terminal.setCursorStyle(cursor.style ?? "bar");
 			this.terminal.showCursor();
+		} else {
+			this.terminal.hideCursor();
 		}
+		this.terminal.endFrame();
 	}
 
 	render(createVNode: () => VNode) {

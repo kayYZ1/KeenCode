@@ -1,4 +1,5 @@
 import type { Position } from "@/tui/render/types/index.ts";
+import { RESET_BG, RESET_FG } from "@/tui/core/ansi.ts";
 import { toAnsi, toBgAnsi } from "./color.ts";
 
 export type BorderStyle = "single" | "double" | "round" | "bold" | "dash" | "block";
@@ -46,11 +47,11 @@ export const drawBox = (
 		const c = overrideColor ?? color;
 		if (c) {
 			const ansi = toAnsi(c);
-			if (ansi) result = `${ansi}${result}\x1b[39m`;
+			if (ansi) result = `${ansi}${result}${RESET_FG}`;
 		}
 		if (bgColor) {
 			const bg = toBgAnsi(bgColor);
-			if (bg) result = `${bg}${result}\x1b[49m`;
+			if (bg) result = `${bg}${result}${RESET_BG}`;
 		}
 		return result;
 	};

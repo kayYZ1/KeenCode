@@ -1,5 +1,6 @@
 import process from "node:process";
 import { signal } from "@preact/signals-core";
+import { CSI } from "@/tui/core/ansi.ts";
 
 export interface KeyEvent {
 	key: string;
@@ -79,7 +80,7 @@ class InputManager {
 	}
 
 	parseKey(seq: string): KeyEvent {
-		if (seq.startsWith("\x1b[")) {
+		if (seq.startsWith(CSI)) {
 			const body = seq.slice(2);
 			switch (body) {
 				case "A":

@@ -1,4 +1,5 @@
 import Y from "yoga-layout";
+import { RESET_BG } from "@/tui/core/ansi.ts";
 import { toBgAnsi } from "@/tui/core/primitives/color.ts";
 import { drawBox } from "@/tui/core/primitives/draw-box.ts";
 import type { BoxInstance, ElementHandler, Position } from "../types/index.ts";
@@ -79,7 +80,7 @@ export const BoxElement: ElementHandler<BoxInstance> = (instance, context): Posi
 			positions.push({
 				x: x + borderW,
 				y: y + row,
-				text: bg ? `${bg}${" ".repeat(w - borderW * 2)}\x1b[49m` : " ".repeat(w - borderW * 2),
+				text: bg ? `${bg}${" ".repeat(w - borderW * 2)}${RESET_BG}` : " ".repeat(w - borderW * 2),
 			});
 		}
 	}

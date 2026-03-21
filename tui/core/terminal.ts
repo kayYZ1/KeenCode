@@ -1,5 +1,16 @@
 import process from "node:process";
-import type { Cell, CursorStyle } from "../render/types/index.ts";
+import type { Cell } from "../render/types/index.ts";
+import {
+	CLEAR_SCREEN,
+	CURSOR_HIDE,
+	CURSOR_SHOW,
+	cursorTo,
+	ENTER_ALT_SCREEN,
+	EXIT_ALT_SCREEN,
+	RESET,
+	SYNC_END,
+	SYNC_START,
+} from "./ansi.ts";
 
 export class Terminal {
 	stdout: typeof process.stdout;
@@ -11,9 +22,10 @@ export class Terminal {
 	cursorVisible: boolean = true;
 	cursorX: number = -1;
 	cursorY: number = -1;
-	cursorStyle: CursorStyle = "bar";
 	private resizeHandler: (() => void) | null = null;
 	private disposed: boolean = false;
+	private frameBuffer: string = "";
+	private batching: boolean = false;
 
 	constructor(stdout: typeof process.stdout = process.stdout) {
 		this.stdout = stdout;
@@ -30,6 +42,26 @@ export class Terminal {
 
 	private isTTY(): boolean {
 		return this.stdout.isTTY ?? false;
+	}
+
+	private write(data: string) {
+		if (this.batching) {
+			this.frameBuffer += data;
+		} else {
+			this.stdout.write(data);
+		}
+	}
+
+	beginFrame() {
+		this.batching = true;
+		this.frameBuffer = SYNC_START;
+	}
+
+	endFrame() {
+		this.frameBuffer += SYNC_END;
+		this.batching = false;
+		this.stdout.write(this.frameBuffer);
+		this.frameBuffer = "";
 	}
 
 	private setupResizeHandler() {
@@ -56,23 +88,23 @@ export class Terminal {
 
 	private clearScreen() {
 		if (!this.isTTY()) return;
-		this.stdout.write("\x1b[2J\x1b[H");
+		this.write(CLEAR_SCREEN);
 	}
 
 	enterAlternateScreen() {
 		if (!this.isTTY()) return;
-		this.stdout.write("\x1b[?1049h");
+		this.write(ENTER_ALT_SCREEN);
 	}
 
 	exitAlternateScreen() {
 		if (!this.isTTY()) return;
-		this.stdout.write("\x1b[?1049l");
+		this.write(EXIT_ALT_SCREEN);
 	}
 
 	hideCursor() {
 		if (!this.isTTY()) return;
 		if (this.cursorVisible) {
-			this.stdout.write("\x1b[?25l");
+			this.write(CURSOR_HIDE);
 			this.cursorVisible = false;
 		}
 	}
@@ -80,24 +112,15 @@ export class Terminal {
 	showCursor() {
 		if (!this.isTTY()) return;
 		if (!this.cursorVisible) {
-			this.stdout.write("\x1b[?25h");
+			this.write(CURSOR_SHOW);
 			this.cursorVisible = true;
-		}
-	}
-
-	setCursorStyle(style: CursorStyle) {
-		if (!this.isTTY()) return;
-		if (this.cursorStyle !== style) {
-			const code = style === "block" ? 2 : 6;
-			this.stdout.write(`\x1b[${code} q`);
-			this.cursorStyle = style;
 		}
 	}
 
 	setCursorPosition(x: number, y: number) {
 		if (!this.isTTY()) return;
 		if (this.cursorX !== x || this.cursorY !== y) {
-			this.stdout.write(`\x1b[${y + 1};${x + 1}H`);
+			this.write(cursorTo(y + 1, x + 1));
 			this.cursorX = x;
 			this.cursorY = y;
 		}
@@ -117,7 +140,7 @@ export class Terminal {
 				let j = i + 2;
 				while (j < str.length && str[j] !== "m") j++;
 				const sequence = str.slice(i, j + 1);
-				if (sequence === "\x1b[0m") {
+				if (sequence === RESET) {
 					currentStyle = "";
 				} else {
 					currentStyle += sequence;
@@ -193,14 +216,14 @@ export class Terminal {
 				if (!current || !previous) continue;
 
 				if (this.isFirstRender || current.char !== previous.char || current.style !== previous.style) {
-					output += `\x1b[${y + 1};${x + 1}H`;
-					output += `${current.style + current.char}\x1b[0m`;
+					output += cursorTo(y + 1, x + 1);
+					output += `${current.style + current.char}${RESET}`;
 				}
 			}
 		}
 
 		if (output) {
-			this.stdout.write(output);
+			this.write(output);
 			this.cursorX = -1;
 			this.cursorY = -1;
 		}

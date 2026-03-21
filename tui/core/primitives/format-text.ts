@@ -1,4 +1,16 @@
 import type { Instance } from "@/tui/render/types/index.ts";
+import {
+	BOLD,
+	BOLD_OFF,
+	ITALIC,
+	ITALIC_OFF,
+	RESET_BG,
+	RESET_FG,
+	STRIKETHROUGH,
+	STRIKETHROUGH_OFF,
+	UNDERLINE,
+	UNDERLINE_OFF,
+} from "@/tui/core/ansi.ts";
 import { toAnsi, toBgAnsi } from "./color.ts";
 
 function childrenToString(children: unknown): string {
@@ -17,19 +29,19 @@ export const formatText = (instance: Instance): string => {
 	if (typeof instance.props.bgColor === "string") {
 		const bg = toBgAnsi(instance.props.bgColor);
 		if (bg) {
-			text = `${bg}${text}\x1b[49m`;
+			text = `${bg}${text}${RESET_BG}`;
 		}
 	}
 	if (typeof instance.props.color === "string") {
 		const ansi = toAnsi(instance.props.color);
 		if (ansi) {
-			text = `${ansi}${text}\x1b[39m`;
+			text = `${ansi}${text}${RESET_FG}`;
 		}
 	}
-	if (instance.props.bold) text = `\x1b[1m${text}\x1b[22m`;
-	if (instance.props.italic) text = `\x1b[3m${text}\x1b[23m`;
-	if (instance.props.underline) text = `\x1b[4m${text}\x1b[24m`;
-	if (instance.props.strikethrough) text = `\x1b[9m${text}\x1b[29m`;
+	if (instance.props.bold) text = `${BOLD}${text}${BOLD_OFF}`;
+	if (instance.props.italic) text = `${ITALIC}${text}${ITALIC_OFF}`;
+	if (instance.props.underline) text = `${UNDERLINE}${text}${UNDERLINE_OFF}`;
+	if (instance.props.strikethrough) text = `${STRIKETHROUGH}${text}${STRIKETHROUGH_OFF}`;
 
 	return text;
 };

@@ -1,3 +1,14 @@
+import {
+	BOLD,
+	BOLD_OFF,
+	ITALIC,
+	ITALIC_OFF,
+	RESET,
+	STRIKETHROUGH,
+	STRIKETHROUGH_OFF,
+	UNDERLINE,
+	UNDERLINE_OFF,
+} from "@/tui/core/ansi.ts";
 import { toAnsi } from "@/tui/core/primitives/color.ts";
 import { type MarkdownSegment, parseMarkdown } from "@/tui/core/primitives/parse-markdown.ts";
 import { useScrollArea } from "./hooks/scroll-area.ts";
@@ -51,12 +62,12 @@ function formatSegment(segment: MarkdownSegment): string {
 	let text = segment.text;
 	if (segment.color) {
 		const ansi = toAnsi(segment.color);
-		if (ansi) text = `${ansi}${text}\x1b[0m`;
+		if (ansi) text = `${ansi}${text}${RESET}`;
 	}
-	if (segment.bold) text = `\x1b[1m${text}\x1b[22m`;
-	if (segment.italic) text = `\x1b[3m${text}\x1b[23m`;
-	if (segment.underline) text = `\x1b[4m${text}\x1b[24m`;
-	if (segment.strikethrough) text = `\x1b[9m${text}\x1b[29m`;
+	if (segment.bold) text = `${BOLD}${text}${BOLD_OFF}`;
+	if (segment.italic) text = `${ITALIC}${text}${ITALIC_OFF}`;
+	if (segment.underline) text = `${UNDERLINE}${text}${UNDERLINE_OFF}`;
+	if (segment.strikethrough) text = `${STRIKETHROUGH}${text}${STRIKETHROUGH_OFF}`;
 	return text;
 }
 

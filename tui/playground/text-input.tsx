@@ -16,7 +16,7 @@ function App() {
 		cursor.value = 0;
 	};
 
-	const { cursorStyle } = useTextInput({
+	useTextInput({
 		value: input,
 		cursorPosition: cursor,
 		mode,
@@ -37,7 +37,6 @@ function App() {
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
-					cursorStyle={cursorStyle}
 					focused
 					width={60}
 					placeholder="Type something..."

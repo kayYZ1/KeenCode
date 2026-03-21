@@ -38,7 +38,11 @@ if (!apiKey) {
 	Deno.exit(1);
 }
 
-const branchName = await new Deno.Command("git", { args: ["branch", "--show-current"], stdout: "piped", stderr: "null" })
+const branchName = await new Deno.Command("git", {
+	args: ["branch", "--show-current"],
+	stdout: "piped",
+	stderr: "null",
+})
 	.output().then((o) => new TextDecoder().decode(o.stdout).trim()).catch(() => "");
 
 const provider = new CompletionsProvider({ apiKey, baseURL: config.baseURL });
@@ -376,7 +380,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 
 	const hasText = !!msg.content?.trim();
 	const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
-	if (!hasText && !hasToolCalls) return null;
+	if (!hasText && !hasToolCalls) return <Box />;
 
 	return (
 		<Box flexDirection="column" gap={1}>
@@ -491,9 +495,15 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		isLoading.value = true;
 		status.value = { kind: "thinking" };
 
+		const cwd = Deno.cwd();
+		const resolved = value.replace(/(^|(?<=\s))@([^\s]+)/g, (match, _prefix, path) => {
+			if (path.startsWith("/")) return match;
+			return `${_prefix}@${cwd}/${path}`;
+		});
+
 		const ac = new AbortController();
 		abortController.value = ac;
-		void runSubmission(value, ac);
+		void runSubmission(resolved, ac);
 	};
 
 	const runSubmission = async (value: string, ac: AbortController) => {

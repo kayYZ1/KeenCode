@@ -12,7 +12,18 @@ async function listFilesGit(root: string): Promise<string[]> {
 		stderr: "piped",
 	}).output();
 	if (!result.success) throw new Error("git ls-files failed");
-	return new TextDecoder().decode(result.stdout).trim().split("\n").filter(Boolean).slice(0, MAX_FILES);
+	const files = new TextDecoder().decode(result.stdout).trim().split("\n").filter(Boolean);
+
+	const dirs = new Set<string>();
+	for (const f of files) {
+		let idx = f.indexOf("/");
+		while (idx !== -1) {
+			dirs.add(f.slice(0, idx) + "/");
+			idx = f.indexOf("/", idx + 1);
+		}
+	}
+
+	return [...dirs, ...files].slice(0, MAX_FILES);
 }
 
 async function listFilesWalk(root: string): Promise<string[]> {
@@ -24,7 +35,9 @@ async function listFilesWalk(root: string): Promise<string[]> {
 			if (files.length >= MAX_FILES) return;
 			if (entry.isDirectory) {
 				if (IGNORE_DIRS.has(entry.name)) continue;
-				await walk(`${dir}/${entry.name}`, prefix ? `${prefix}/${entry.name}` : entry.name);
+				const dirPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+				files.push(dirPath + "/");
+				await walk(`${dir}/${entry.name}`, dirPath);
 			} else if (entry.isFile) {
 				files.push(prefix ? `${prefix}/${entry.name}` : entry.name);
 			}

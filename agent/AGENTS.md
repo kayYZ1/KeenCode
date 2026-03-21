@@ -24,7 +24,16 @@ import { run as runAgent } from "@/core/agent.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { run } from "@/tui/render/index.ts";
-import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput, WelcomeScreen } from "@/tui/render/components.tsx";
+import {
+	Box,
+	CommandPalette,
+	Markdown,
+	ScrollArea,
+	Spinner,
+	Text,
+	TextInput,
+	WelcomeScreen,
+} from "@/tui/render/components.tsx";
 ```
 
 ### Configuration
@@ -32,6 +41,7 @@ import { Box, CommandPalette, Markdown, ScrollArea, Spinner, Text, TextInput, We
 - `LLM_API_KEY` (required) - API key for the LLM provider (set via environment variable)
 
 Defaults in `config.ts`:
+
 - `baseURL` - defaults to `https://openrouter.ai/api/v1`
 - `model` - defaults to `moonshotai/kimi-k2.5`
 

@@ -66,6 +66,15 @@ Use tools to accomplish tasks efficiently. Prefer automation: execute requested 
 - Use functional array methods (flatMap, filter, map) over for loops
 - Avoid unnecessary destructuring; use dot notation to preserve context
 
+## Self-Review
+
+After completing a task, run \`git diff\` to review all changes you made. Check for:
+- Bugs, typos, or logic errors
+- Inaccuracies or inconsistencies with the surrounding code
+- Simplification opportunities (dead code, unnecessary abstractions)
+
+Fix any issues found before reporting the task as done.
+
 ## Project Context
 
 - When starting a new task, check for AGENTS.md in the project root and relevant subdirectories

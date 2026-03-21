@@ -2,6 +2,8 @@ import process from "node:process";
 import type { Cell } from "../render/types/index.ts";
 import {
 	CLEAR_SCREEN,
+	CURSOR_BLOCK,
+	CURSOR_DEFAULT,
 	CURSOR_HIDE,
 	CURSOR_SHOW,
 	cursorTo,
@@ -36,6 +38,7 @@ export class Terminal {
 
 		this.setupResizeHandler();
 		this.enterAlternateScreen();
+		this.write(CURSOR_BLOCK);
 		this.hideCursor();
 		this.clearScreen();
 	}
@@ -244,6 +247,7 @@ export class Terminal {
 		this.currentBuffer = this.createEmptyBuffer();
 		this.previousBuffer = this.createEmptyBuffer();
 		this.isFirstRender = true;
+		this.write(CURSOR_DEFAULT);
 		this.showCursor();
 		this.exitAlternateScreen();
 	}

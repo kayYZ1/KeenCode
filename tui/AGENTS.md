@@ -129,7 +129,7 @@ All exported from `render/components.tsx`:
 
 - **`Box`** - Flexbox container with border, padding, and positioning support
 - **`Text`** - Styled text with color, bold, italic, underline, strikethrough
-- **`TextInput`** - Text input field with cursor, placeholder, and vim mode cursor styles (`block`/`bar`)
+- **`TextInput`** - Text input field with cursor, placeholder, and vim mode support
 - **`Spinner`** - Animated spinner (default 80ms interval, 10 frames)
 - **`ScrollArea`** - Scrollable container (extends BoxProps) with `autoScroll`, `scrollbar`, and `scrollStep`
 - **`Markdown`** - Renders markdown content as styled Text lines via `parseMarkdown()`

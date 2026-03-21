@@ -13,6 +13,10 @@ export const CLEAR_SCREEN = "\x1b[2J\x1b[H";
 export const CURSOR_HIDE = "\x1b[?25l";
 /** Show the cursor */
 export const CURSOR_SHOW = "\x1b[?25h";
+/** Set cursor shape to steady block */
+export const CURSOR_BLOCK = "\x1b[2 q";
+/** Reset cursor shape to terminal default */
+export const CURSOR_DEFAULT = "\x1b[0 q";
 
 /** Move cursor to row;col (1-indexed) */
 export function cursorTo(row: number, col: number): string {

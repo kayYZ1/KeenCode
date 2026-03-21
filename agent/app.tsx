@@ -38,6 +38,9 @@ if (!apiKey) {
 	Deno.exit(1);
 }
 
+const branchName = await new Deno.Command("git", { args: ["branch", "--show-current"], stdout: "piped", stderr: "null" })
+	.output().then((o) => new TextDecoder().decode(o.stdout).trim()).catch(() => "");
+
 const provider = new CompletionsProvider({ apiKey, baseURL: config.baseURL });
 const tools = createToolRegistry(defaultTools);
 
@@ -223,6 +226,34 @@ function formatStatus(status: AgentStatus): string {
 // Components
 // ---------------------------------------------------------------------------
 
+const CONTEXT_WINDOW = 200_000;
+const TOKEN_BAR_WIDTH = 20;
+
+const CONTEXT_WINDOW_LABEL = "200k";
+
+function formatTokens(n: number): string {
+	if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
+	if (n >= 1_000) return (n / 1_000).toFixed(1) + "k";
+	return String(n);
+}
+
+function TokenBar({ tokenCount }: { tokenCount: number }) {
+	const ratio = Math.min(tokenCount / CONTEXT_WINDOW, 1);
+	const filled = Math.round(ratio * TOKEN_BAR_WIDTH);
+	const empty = TOKEN_BAR_WIDTH - filled;
+	const color = ratio >= 0.8 ? "red" : ratio >= 0.5 ? "yellow" : "green";
+
+	return (
+		<Box flexDirection="row" gap={1}>
+			<Text color="gray">tokens</Text>
+			{filled > 0 && <Text color={color}>{"█".repeat(filled)}</Text>}
+			{empty > 0 && <Text color="gray">{"░".repeat(empty)}</Text>}
+			<Text color={color}>{formatTokens(tokenCount)}</Text>
+			<Text color="gray">/ {CONTEXT_WINDOW_LABEL}</Text>
+		</Box>
+	);
+}
+
 function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: number }) {
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
@@ -230,15 +261,13 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 				<Text bold color="cyan">
 					KeenCode
 				</Text>
+				{branchName && <Text color="yellow">on {branchName}</Text>}
 			</Box>
 			<Box flexDirection="row" gap={2}>
-				<Box flexDirection="row" gap={1}>
-					<Text color="gray">tokens:</Text>
-					<Text color="white">{tokenCount}</Text>
-				</Box>
+				<TokenBar tokenCount={tokenCount} />
 				<Box flexDirection="row" gap={1}>
 					<Text color="gray">cost:</Text>
-					<Text color="green">{totalCost.toFixed(4)}$</Text>
+					<Text color="green">{totalCost.toFixed(2)}$</Text>
 				</Box>
 			</Box>
 		</Box>

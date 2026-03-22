@@ -25,6 +25,7 @@ import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/c
 import { inputManager } from "@/tui/core/input.ts";
 import { useProjectFiles } from "./hooks/project-files.ts";
 import { config } from "./config.ts";
+import { theme } from "@/tui/theme.ts";
 import { VERSION } from "@/version.ts";
 import "@std/dotenv/load";
 
@@ -232,9 +233,9 @@ function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
 		<Box position="absolute" bottom={4} left={1}>
 			<Box
 				border="round"
-				borderColor="yellow"
+				borderColor={theme.warning}
 				borderLabel="Permission Required"
-				borderLabelColor="yellow"
+				borderLabelColor={theme.warning}
 				bgColor="default"
 				flexDirection="column"
 				padding={1}
@@ -242,23 +243,23 @@ function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
 				width={65}
 			>
 				<Box flexDirection="row" gap={1}>
-					<Text color="yellow" bold>
+					<Text color={theme.warning} bold>
 						{pending.toolName}
 					</Text>
-					<Text color="gray">{displayCmd}</Text>
+					<Text color={theme.textMuted}>{displayCmd}</Text>
 				</Box>
 				<Box flexDirection="column">
 					{PERMISSION_OPTIONS.map((option, i) => {
 						const isSelected = i === selectedIndex.value;
 						return (
 							<Box key={option.id} flexDirection="row" gap={1}>
-								<Text color={isSelected ? "cyan" : "gray"} bold={isSelected}>
+								<Text color={isSelected ? theme.accent : theme.textDim} bold={isSelected}>
 									{isSelected ? ">" : " "}
 								</Text>
-								<Text color={isSelected ? "white" : "gray"} bold={isSelected}>
+								<Text color={isSelected ? theme.text : theme.textMuted} bold={isSelected}>
 									{option.title}
 								</Text>
-								<Text color="gray" italic>
+								<Text color={theme.textMuted} italic>
 									{option.description}
 								</Text>
 							</Box>
@@ -312,16 +313,16 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 	const ratio = Math.min(tokenCount / CONTEXT_WINDOW, 1);
 	const filled = Math.round(ratio * TOKEN_BAR_WIDTH);
 	const empty = TOKEN_BAR_WIDTH - filled;
-	const color = ratio >= 0.8 ? "red" : ratio >= 0.5 ? "yellow" : "green";
+	const color = ratio >= 0.8 ? theme.tokenHigh : ratio >= 0.5 ? theme.tokenMid : theme.tokenLow;
 
 	return (
 		<Box flexDirection="row" gap={1}>
-			<Text color="gray">tokens</Text>
-			<Text color={filled > 0 ? color : "gray"}>
+			<Text color={theme.textDim}>tokens</Text>
+			<Text color={filled > 0 ? color : theme.textDim}>
 				{"█".repeat(filled)}{"░".repeat(empty)}
 			</Text>
 			<Text color={color}>{formatTokens(tokenCount)}</Text>
-			<Text color="gray">/ {CONTEXT_WINDOW_LABEL}</Text>
+			<Text color={theme.textDim}>/ {CONTEXT_WINDOW_LABEL}</Text>
 		</Box>
 	);
 }
@@ -330,16 +331,16 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={1}>
-				<Text bold color="cyan">
+				<Text bold color={theme.brand}>
 					KeenCode
 				</Text>
-				{branchName && <Text color="yellow">on {branchName}</Text>}
+				{branchName && <Text color={theme.warning}>on {branchName}</Text>}
 			</Box>
 			<Box flexDirection="row" gap={2}>
 				<TokenBar tokenCount={tokenCount} />
 				<Box flexDirection="row" gap={1}>
-					<Text color="gray">cost:</Text>
-					<Text color="green">{totalCost.toFixed(2)}$</Text>
+					<Text color={theme.textDim}>cost:</Text>
+					<Text color={theme.success}>{totalCost.toFixed(2)}$</Text>
 				</Box>
 			</Box>
 		</Box>
@@ -347,9 +348,9 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 }
 
 const DIFF_INDICATOR: Record<DisplayDiffLine["type"], { symbol: string; color: string }> = {
-	add: { symbol: "+", color: "green" },
-	remove: { symbol: "-", color: "red" },
-	context: { symbol: " ", color: "gray" },
+	add: { symbol: "+", color: theme.diffAdd },
+	remove: { symbol: "-", color: theme.diffRemove },
+	context: { symbol: " ", color: theme.diffContext },
 };
 
 function DiffView({ diff }: { diff: string }) {
@@ -381,11 +382,11 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	return (
 		<Box flexDirection="column">
 			<Box flexDirection="row" gap={1}>
-				<Text color="yellow" bold>{tool.name}</Text>
-				<Text color="gray">{tool.input}</Text>
-				{diffSummary && <Text color="gray">({diffSummary})</Text>}
+				<Text color={theme.warning} bold>{tool.name}</Text>
+				<Text color={theme.textMuted}>{tool.input}</Text>
+				{diffSummary && <Text color={theme.textMuted}>({diffSummary})</Text>}
 			</Box>
-			{showDiff ? <DiffView diff={tool.diff!} /> : output ? <Text color="gray">{output}</Text> : null}
+			{showDiff ? <DiffView diff={tool.diff!} /> : output ? <Text color={theme.textMuted}>{output}</Text> : null}
 		</Box>
 	);
 }
@@ -421,10 +422,10 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	if (msg.role === "user") {
 		return (
 			<Box flexDirection="row" gap={1}>
-				<Text color="green" bold>
+				<Text color={theme.success} bold>
 					❯
 				</Text>
-				<Text flex color="white">
+				<Text flex color={theme.text}>
 					{msg.content}
 				</Text>
 			</Box>
@@ -440,7 +441,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 			{hasText
 				? (
 					<Box flexDirection="row" gap={1}>
-						<Text color="blue" bold>
+						<Text color={theme.info} bold>
 							●
 						</Text>
 						<Markdown flex>{msg.content}</Markdown>
@@ -794,12 +795,12 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				)}
 
 			<Box height={1} />
-			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>
+			<Box border="round" borderColor={theme.border} borderLabel={mode.value} borderLabelColor={theme.borderLabel} padding={1}>
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
 					placeholder="What can I help you build?"
-					placeholderColor="gray"
+					placeholderColor={theme.textDim}
 					focused={!pendingPermission.value}
 				/>
 			</Box>
@@ -808,25 +809,25 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				<Box flexDirection="row" gap={1}>
 					{isLoading.value && (
 						<>
-							<Spinner color="cyan" />
-							<Text color="gray" bold italic>
+							<Spinner color={theme.accent} />
+							<Text color={theme.textMuted} bold italic>
 								{formatStatus(status.value)}
 							</Text>
 							{escPrimed.value
 								? (
-									<Text color="yellow" bold>
+									<Text color={theme.warning} bold>
 										Press Esc again to cancel
 									</Text>
 								)
 								: (
-									<Text color="gray" italic>
+									<Text color={theme.textDim} italic>
 										Esc to cancel
 									</Text>
 								)}
 						</>
 					)}
 				</Box>
-				<Text color="gray" italic>
+				<Text color={theme.textDim} italic>
 					Enter to send • @ for files • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode
 				</Text>
 			</Box>

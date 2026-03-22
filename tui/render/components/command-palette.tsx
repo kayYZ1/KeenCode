@@ -1,4 +1,5 @@
 import { Box, Text, TextInput } from "../components.tsx";
+import { theme } from "@/tui/theme.ts";
 import type { CommandPaletteItem } from "../hooks/command-palette.ts";
 import type { useCommandPalette } from "../hooks/command-palette.ts";
 
@@ -19,9 +20,9 @@ export function CommandPalette(props: CommandPaletteProps) {
 			<Box
 				width={width}
 				border="round"
-				borderColor="white"
+				borderColor={theme.border}
 				borderLabel={borderLabel}
-				borderLabelColor="white"
+				borderLabelColor={theme.borderLabel}
 				bgColor="default"
 				flexDirection="column"
 				padding={1}
@@ -31,7 +32,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 					value={palette.query.value}
 					cursorPosition={palette.cursor.value}
 					placeholder={placeholder}
-					placeholderColor="gray"
+					placeholderColor={theme.textDim}
 					focused
 					width={width - 4}
 				/>
@@ -40,14 +41,14 @@ export function CommandPalette(props: CommandPaletteProps) {
 						const isSelected = i === palette.selectedIndex.value;
 						return (
 							<Box key={item.id} flexDirection="row" gap={1}>
-								<Text color={isSelected ? "cyan" : "gray"} bold={isSelected}>
+								<Text color={isSelected ? theme.accent : theme.textDim} bold={isSelected}>
 									{isSelected ? ">" : " "}
 								</Text>
-								<Text color={isSelected ? "white" : "gray"} bold={isSelected}>
+								<Text color={isSelected ? theme.text : theme.textMuted} bold={isSelected}>
 									{item.title}
 								</Text>
 								{item.description && (
-									<Text color="gray" italic>
+									<Text color={theme.textMuted} italic>
 										{item.description}
 									</Text>
 								)}
@@ -55,7 +56,7 @@ export function CommandPalette(props: CommandPaletteProps) {
 						);
 					})}
 					{palette.matches.length === 0 && (
-						<Text color="gray" italic>
+						<Text color={theme.textDim} italic>
 							No matching commands
 						</Text>
 					)}

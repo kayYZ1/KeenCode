@@ -262,7 +262,8 @@ async function executeTool(
 			return {
 				tc,
 				result: {
-					content: `Permission denied for "${tc.function.name}". Continue the task using other available tools.`,
+					content:
+						`Permission denied for "${tc.function.name}". Continue the task using other available tools.`,
 					isError: true,
 				},
 			};

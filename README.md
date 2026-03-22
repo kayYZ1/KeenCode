@@ -1,4 +1,4 @@
-# KeenCode v0.4.1
+# KeenCode v0.4.2
 
 A terminal-based coding agent with a custom TUI framework, built with Deno and TypeScript.
 

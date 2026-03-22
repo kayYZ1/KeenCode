@@ -16,8 +16,8 @@ When you know you need to run multiple tools, run them in parallel if they are i
 
 ## Tool Usage
 
-- **bash** — Run project scripts (`deno task`, `npm run`), build/test commands, git operations, and package installs.
-  Do NOT use bash for file reading, searching, or listing — use the dedicated tools below. Avoid interactive commands
+- **bash** — Run project scripts (`deno task`, `npm run`), build/test commands, git operations, and package installs. Do
+  NOT use bash for file reading, searching, or listing — use the dedicated tools below. Avoid interactive commands
   (REPLs, editors, password prompts) and background processes with `&`
 - **read_file** — Read file contents. Always use this instead of `cat`/`head`/`tail`
 - **write_file** — Write or create files. Always use this instead of echo/heredoc via bash

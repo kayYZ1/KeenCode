@@ -51,6 +51,95 @@ const tools = createToolRegistry(defaultTools);
 const SYSTEM_PROMPT = await Deno.readTextFile(new URL("./system-prompt.md", import.meta.url));
 
 // ---------------------------------------------------------------------------
+// @ Mention expansion
+// ---------------------------------------------------------------------------
+
+const MENTION_RE = /@([\w./_-]+\/?)/g;
+const MAX_MENTION_OUTPUT = 10_000;
+const MENTION_IGNORE_DIRS = new Set([
+	".git", "node_modules", "dist", "out", "build", "coverage", ".next", "target", ".cache",
+]);
+
+async function readDirRecursive(absDir: string, relDir: string): Promise<string> {
+	const parts: string[] = [];
+	let totalLen = 0;
+	let truncated = false;
+
+	async function walk(abs: string, rel: string) {
+		if (truncated) return;
+		let entries: Deno.DirEntry[];
+		try {
+			entries = await Array.fromAsync(Deno.readDir(abs));
+		} catch {
+			return;
+		}
+		entries.sort((a, b) => a.name.localeCompare(b.name));
+		for (const entry of entries) {
+			if (truncated) return;
+			const absPath = `${abs}/${entry.name}`;
+			const relPath = `${rel}/${entry.name}`;
+			if (entry.isDirectory) {
+				if (MENTION_IGNORE_DIRS.has(entry.name)) continue;
+				await walk(absPath, relPath);
+			} else if (entry.isFile) {
+				try {
+					const content = await Deno.readTextFile(absPath);
+					const header = `--- ${relPath} ---\n`;
+					const section = header + content + "\n\n";
+					if (totalLen + section.length > MAX_MENTION_OUTPUT) {
+						const remaining = MAX_MENTION_OUTPUT - totalLen;
+						if (remaining > header.length) parts.push(header + content.slice(0, remaining - header.length));
+						truncated = true;
+						return;
+					}
+					parts.push(section);
+					totalLen += section.length;
+				} catch {
+					// skip binary / unreadable
+				}
+			}
+		}
+	}
+
+	await walk(absDir.replace(/\/+$/, ""), relDir.replace(/\/+$/, ""));
+	let result = parts.join("");
+	if (truncated) result += "\n...(truncated)";
+	return result || "(empty directory)";
+}
+
+async function expandMentions(text: string): Promise<string> {
+	const cwd = Deno.cwd();
+	const contextBlocks: string[] = [];
+	const seen = new Set<string>();
+
+	for (const match of text.matchAll(MENTION_RE)) {
+		const relPath = match[1];
+		if (seen.has(relPath)) continue;
+		seen.add(relPath);
+
+		const absPath = `${cwd}/${relPath}`;
+		try {
+			const stat = await Deno.stat(absPath);
+			if (stat.isDirectory) {
+				contextBlocks.push(await readDirRecursive(absPath, relPath));
+			} else if (stat.isFile) {
+				const raw = await Deno.readTextFile(absPath);
+				const content = raw.length > MAX_MENTION_OUTPUT
+					? raw.slice(0, MAX_MENTION_OUTPUT) + "\n...(truncated)"
+					: raw;
+				contextBlocks.push(`--- ${relPath} ---\n${content}`);
+			}
+		} catch {
+			// path doesn't exist or can't be read — leave mention as-is
+		}
+	}
+
+	if (contextBlocks.length === 0) return text;
+
+	return `${text}\n\n<attached_context>\n${contextBlocks.join("\n\n")}\n</attached_context>`;
+}
+
+// ---------------------------------------------------------------------------
 // UI Types
 // ---------------------------------------------------------------------------
 
@@ -228,8 +317,9 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 	return (
 		<Box flexDirection="row" gap={1}>
 			<Text color="gray">tokens</Text>
-			{filled > 0 && <Text color={color}>{"█".repeat(filled)}</Text>}
-			{empty > 0 && <Text color="gray">{"░".repeat(empty)}</Text>}
+			<Text color={filled > 0 ? color : "gray"}>
+				{"█".repeat(filled)}{"░".repeat(empty)}
+			</Text>
 			<Text color={color}>{formatTokens(tokenCount)}</Text>
 			<Text color="gray">/ {CONTEXT_WINDOW_LABEL}</Text>
 		</Box>
@@ -464,7 +554,10 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 	};
 
 	const runSubmission = async (value: string, ac: AbortController) => {
-		await session.value.append({ type: "message", role: "user", content: value });
+		// Resolve @mentions: read file/directory contents and append as context
+		const expandedValue = await expandMentions(value);
+
+		await session.value.append({ type: "message", role: "user", content: expandedValue });
 		const messages = entriesToMessages(session.value.getEntries());
 
 		const draft = { text: "", toolCalls: [] as UIToolCall[], msgIndex: -1 };
@@ -538,8 +631,9 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				}
 				case "message_complete": {
 					if (event.usage) {
-						tokenCount.value += event.usage.prompt_tokens + event.usage.completion_tokens;
+						tokenCount.value = event.usage.prompt_tokens + event.usage.completion_tokens;
 						if (event.usage.cost) totalCost.value += event.usage.cost;
+						session.value.setTokens(tokenCount.value);
 					}
 					if (event.generationId) {
 						const sid = sessionId.value;
@@ -547,7 +641,8 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 							if (!stats || sessionId.value !== sid) return;
 							if (stats.totalCost !== null) totalCost.value += stats.totalCost;
 							if (!event.usage && stats.promptTokens !== null && stats.completionTokens !== null) {
-								tokenCount.value += stats.promptTokens + stats.completionTokens;
+								tokenCount.value = stats.promptTokens + stats.completionTokens;
+								session.value.setTokens(tokenCount.value);
 							}
 						});
 					}
@@ -610,7 +705,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			SessionManager.open(item.id).then((sm) => {
 				session.value = sm;
 				uiMessages.value = entriesToUIMessages(sm.getEntries());
-				tokenCount.value = 0;
+				tokenCount.value = sm.getTokens();
 				totalCost.value = 0;
 				sessionId.value++;
 			});
@@ -703,7 +798,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
-					placeholder="Awaiting instructions..."
+					placeholder="What can I help you build?"
 					placeholderColor="gray"
 					focused={!pendingPermission.value}
 				/>

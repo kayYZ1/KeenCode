@@ -42,7 +42,7 @@ export interface AgentConfig {
 }
 
 const DEFAULT_MAX_TOOL_ROUNDS = 30;
-const REFLECTION_INTERVAL = 3;
+const REFLECTION_INTERVAL = 6;
 const MAX_API_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1000;
 
@@ -62,17 +62,21 @@ export async function* run(
 		...messages,
 	];
 
+	// Tools that directly mutate the filesystem (not bash — bash commands are often read-only)
+	const MUTATING_TOOLS = new Set(["write_file", "edit_file"]);
+
 	const recentCallSignatures: string[] = [];
 
 	for (let round = 0; round < maxRounds; round++) {
 		if (config.signal?.aborted) return;
 
-		// Self-reflection: after every N tool rounds, prompt the model to assess progress
+		// Self-reflection: after many tool rounds, prompt the model to assess progress
+		// Uses "user" role so trimContext can drop it if context grows too large
 		if (round > 0 && round % REFLECTION_INTERVAL === 0) {
 			context.push({
-				role: "system",
+				role: "user",
 				content:
-					`You have completed ${round} tool rounds. Before continuing, briefly assess: Are you making progress toward the user's goal? If you are stuck or repeating yourself, try a different approach.`,
+					`[system note] You have completed ${round} tool rounds. Briefly assess: are you making progress toward the user's goal? If stuck or repeating yourself, try a different approach.`,
 			});
 		}
 
@@ -163,9 +167,9 @@ export async function* run(
 
 		if (repeated >= 2) {
 			context.push({
-				role: "system",
+				role: "user",
 				content:
-					"You have repeated the same tool calls 3 times. You are stuck in a loop. Stop and either try a completely different approach or respond to the user explaining what went wrong.",
+					"[system note] You have repeated the same tool calls 3 times. You are stuck in a loop. Stop and either try a completely different approach or respond to the user explaining what went wrong.",
 			});
 		}
 
@@ -204,13 +208,14 @@ export async function* run(
 
 		yield { type: "turn_complete", assistantMessage, toolResults: toolResultMessages };
 
-		// Grounding: after side-effect tools, nudge the model to verify its changes
-		if (sideEffectCalls.length > 0) {
-			const toolNames = sideEffectCalls.map((tc) => tc.function.name).join(", ");
+		// Grounding: only nudge verification after tools that directly mutate files (not bash)
+		const mutatingCalls = sideEffectCalls.filter((tc) => MUTATING_TOOLS.has(tc.function.name));
+		if (mutatingCalls.length > 0) {
+			const toolNames = mutatingCalls.map((tc) => tc.function.name).join(", ");
 			context.push({
-				role: "system",
+				role: "user",
 				content:
-					`You just ran side-effect tools (${toolNames}). Verify your changes worked as expected before proceeding — read the affected files or run a check command.`,
+					`[system note] You just ran file-mutating tools (${toolNames}). Verify your changes worked as expected before proceeding.`,
 			});
 		}
 
@@ -257,8 +262,7 @@ async function executeTool(
 			return {
 				tc,
 				result: {
-					content:
-						`Permission denied by user for tool "${tc.function.name}". Do not retry this command without asking the user first.`,
+					content: `Permission denied for "${tc.function.name}". Continue the task using other available tools.`,
 					isError: true,
 				},
 			};

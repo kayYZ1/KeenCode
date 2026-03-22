@@ -18,7 +18,7 @@
 		"playground:welcome": "deno run --allow-all tui/playground/welcome.tsx",
 		"build": "deno run --allow-all scripts/build.ts",
 		"version": "deno eval \"import {VERSION} from './version.ts'; console.log(VERSION)\"",
-		"version:bump": "deno run --allow-write=version.ts scripts/bump.ts"
+		"version:bump": "deno run --allow-write=version.ts,README.md --allow-read=README.md scripts/bump.ts"
 	},
 	"imports": {
 		"@preact/signals-core": "npm:@preact/signals-core@^1.11.1",

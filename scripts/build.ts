@@ -34,6 +34,7 @@ async function build() {
 	await run([
 		"deno",
 		"compile",
+		"--unstable-raw-imports",
 		"--allow-env",
 		"--allow-read",
 		"--allow-write",

@@ -28,6 +28,7 @@ import { config } from "./config.ts";
 import { theme } from "@/tui/theme.ts";
 import { VERSION } from "@/version.ts";
 import "@std/dotenv/load";
+import SYSTEM_PROMPT from "./system-prompt.md" with { type: "text" };
 
 // ---------------------------------------------------------------------------
 // Config
@@ -48,8 +49,6 @@ const branchName = await new Deno.Command("git", {
 
 const provider = new CompletionsProvider({ apiKey, baseURL: config.baseURL });
 const tools = createToolRegistry(defaultTools);
-
-const SYSTEM_PROMPT = await Deno.readTextFile(new URL("./system-prompt.md", import.meta.url));
 
 // ---------------------------------------------------------------------------
 // @ Mention expansion

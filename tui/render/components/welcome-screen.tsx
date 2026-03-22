@@ -1,4 +1,5 @@
 import { Box, Text } from "../components.tsx";
+import { theme } from "@/tui/theme.ts";
 
 // Spaces use \u00A0 (non-breaking space) so wrapText doesn't collapse them
 const LOGO_LINES = [
@@ -19,11 +20,11 @@ export function WelcomeScreen({ version, subtitle = "Type a message to get start
 	return (
 		<Box flex flexDirection="column" justifyContent="center" alignItems="center" gap={1}>
 			<Box flexDirection="column">
-				{LOGO_LINES.map((line, i) => <Text key={i} color="cyan">{line}</Text>)}
+				{LOGO_LINES.map((line, i) => <Text key={i} color={theme.brand}>{line}</Text>)}
 			</Box>
 			<Box flexDirection="column" alignItems="center" gap={1}>
-				<Text color="gray">v{version} — terminal coding agent</Text>
-				<Text color="gray" italic>{subtitle}</Text>
+				<Text color={theme.textMuted}>v{version} — terminal coding agent</Text>
+				<Text color={theme.textDim} italic>{subtitle}</Text>
 			</Box>
 		</Box>
 	);

@@ -25,6 +25,7 @@ import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/c
 import { inputManager } from "@/tui/core/input.ts";
 import { useProjectFiles } from "./hooks/project-files.ts";
 import { config } from "./config.ts";
+import { theme } from "@/tui/theme.ts";
 import { VERSION } from "@/version.ts";
 import "@std/dotenv/load";
 
@@ -49,6 +50,103 @@ const provider = new CompletionsProvider({ apiKey, baseURL: config.baseURL });
 const tools = createToolRegistry(defaultTools);
 
 const SYSTEM_PROMPT = await Deno.readTextFile(new URL("./system-prompt.md", import.meta.url));
+
+// ---------------------------------------------------------------------------
+// @ Mention expansion
+// ---------------------------------------------------------------------------
+
+const MENTION_RE = /@([\w./_-]+\/?)/g;
+const MAX_MENTION_OUTPUT = 10_000;
+const MENTION_IGNORE_DIRS = new Set([
+	".git",
+	"node_modules",
+	"dist",
+	"out",
+	"build",
+	"coverage",
+	".next",
+	"target",
+	".cache",
+]);
+
+async function readDirRecursive(absDir: string, relDir: string): Promise<string> {
+	const parts: string[] = [];
+	let totalLen = 0;
+	let truncated = false;
+
+	async function walk(abs: string, rel: string) {
+		if (truncated) return;
+		let entries: Deno.DirEntry[];
+		try {
+			entries = await Array.fromAsync(Deno.readDir(abs));
+		} catch {
+			return;
+		}
+		entries.sort((a, b) => a.name.localeCompare(b.name));
+		for (const entry of entries) {
+			if (truncated) return;
+			const absPath = `${abs}/${entry.name}`;
+			const relPath = `${rel}/${entry.name}`;
+			if (entry.isDirectory) {
+				if (MENTION_IGNORE_DIRS.has(entry.name)) continue;
+				await walk(absPath, relPath);
+			} else if (entry.isFile) {
+				try {
+					const content = await Deno.readTextFile(absPath);
+					const header = `--- ${relPath} ---\n`;
+					const section = header + content + "\n\n";
+					if (totalLen + section.length > MAX_MENTION_OUTPUT) {
+						const remaining = MAX_MENTION_OUTPUT - totalLen;
+						if (remaining > header.length) parts.push(header + content.slice(0, remaining - header.length));
+						truncated = true;
+						return;
+					}
+					parts.push(section);
+					totalLen += section.length;
+				} catch {
+					// skip binary / unreadable
+				}
+			}
+		}
+	}
+
+	await walk(absDir.replace(/\/+$/, ""), relDir.replace(/\/+$/, ""));
+	let result = parts.join("");
+	if (truncated) result += "\n...(truncated)";
+	return result || "(empty directory)";
+}
+
+async function expandMentions(text: string): Promise<string> {
+	const cwd = Deno.cwd();
+	const contextBlocks: string[] = [];
+	const seen = new Set<string>();
+
+	for (const match of text.matchAll(MENTION_RE)) {
+		const relPath = match[1];
+		if (seen.has(relPath)) continue;
+		seen.add(relPath);
+
+		const absPath = `${cwd}/${relPath}`;
+		try {
+			const stat = await Deno.stat(absPath);
+			if (stat.isDirectory) {
+				contextBlocks.push(await readDirRecursive(absPath, relPath));
+			} else if (stat.isFile) {
+				const raw = await Deno.readTextFile(absPath);
+				const content = raw.length > MAX_MENTION_OUTPUT
+					? raw.slice(0, MAX_MENTION_OUTPUT) + "\n...(truncated)"
+					: raw;
+				contextBlocks.push(`--- ${relPath} ---\n${content}`);
+			}
+		} catch {
+			// path doesn't exist or can't be read — leave mention as-is
+		}
+	}
+
+	if (contextBlocks.length === 0) return text;
+
+	return `${text}\n\n<attached_context>\n${contextBlocks.join("\n\n")}\n</attached_context>`;
+}
 
 // ---------------------------------------------------------------------------
 // UI Types
@@ -143,9 +241,9 @@ function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
 		<Box position="absolute" bottom={4} left={1}>
 			<Box
 				border="round"
-				borderColor="yellow"
+				borderColor={theme.warning}
 				borderLabel="Permission Required"
-				borderLabelColor="yellow"
+				borderLabelColor={theme.warning}
 				bgColor="default"
 				flexDirection="column"
 				padding={1}
@@ -153,23 +251,23 @@ function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
 				width={65}
 			>
 				<Box flexDirection="row" gap={1}>
-					<Text color="yellow" bold>
+					<Text color={theme.warning} bold>
 						{pending.toolName}
 					</Text>
-					<Text color="gray">{displayCmd}</Text>
+					<Text color={theme.textMuted}>{displayCmd}</Text>
 				</Box>
 				<Box flexDirection="column">
 					{PERMISSION_OPTIONS.map((option, i) => {
 						const isSelected = i === selectedIndex.value;
 						return (
 							<Box key={option.id} flexDirection="row" gap={1}>
-								<Text color={isSelected ? "cyan" : "gray"} bold={isSelected}>
+								<Text color={isSelected ? theme.accent : theme.textDim} bold={isSelected}>
 									{isSelected ? ">" : " "}
 								</Text>
-								<Text color={isSelected ? "white" : "gray"} bold={isSelected}>
+								<Text color={isSelected ? theme.text : theme.textMuted} bold={isSelected}>
 									{option.title}
 								</Text>
-								<Text color="gray" italic>
+								<Text color={theme.textMuted} italic>
 									{option.description}
 								</Text>
 							</Box>
@@ -223,15 +321,17 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 	const ratio = Math.min(tokenCount / CONTEXT_WINDOW, 1);
 	const filled = Math.round(ratio * TOKEN_BAR_WIDTH);
 	const empty = TOKEN_BAR_WIDTH - filled;
-	const color = ratio >= 0.8 ? "red" : ratio >= 0.5 ? "yellow" : "green";
+	const color = ratio >= 0.8 ? theme.tokenHigh : ratio >= 0.5 ? theme.tokenMid : theme.tokenLow;
 
 	return (
 		<Box flexDirection="row" gap={1}>
-			<Text color="gray">tokens</Text>
-			{filled > 0 && <Text color={color}>{"█".repeat(filled)}</Text>}
-			{empty > 0 && <Text color="gray">{"░".repeat(empty)}</Text>}
+			<Text color={theme.textDim}>tokens</Text>
+			<Text color={filled > 0 ? color : theme.textDim}>
+				{"█".repeat(filled)}
+				{"░".repeat(empty)}
+			</Text>
 			<Text color={color}>{formatTokens(tokenCount)}</Text>
-			<Text color="gray">/ {CONTEXT_WINDOW_LABEL}</Text>
+			<Text color={theme.textDim}>/ {CONTEXT_WINDOW_LABEL}</Text>
 		</Box>
 	);
 }
@@ -240,16 +340,16 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 	return (
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={1}>
-				<Text bold color="cyan">
+				<Text bold color={theme.brand}>
 					KeenCode
 				</Text>
-				{branchName && <Text color="yellow">on {branchName}</Text>}
+				{branchName && <Text color={theme.warning}>on {branchName}</Text>}
 			</Box>
 			<Box flexDirection="row" gap={2}>
 				<TokenBar tokenCount={tokenCount} />
 				<Box flexDirection="row" gap={1}>
-					<Text color="gray">cost:</Text>
-					<Text color="green">{totalCost.toFixed(2)}$</Text>
+					<Text color={theme.textDim}>cost:</Text>
+					<Text color={theme.success}>{totalCost.toFixed(2)}$</Text>
 				</Box>
 			</Box>
 		</Box>
@@ -257,9 +357,9 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 }
 
 const DIFF_INDICATOR: Record<DisplayDiffLine["type"], { symbol: string; color: string }> = {
-	add: { symbol: "+", color: "green" },
-	remove: { symbol: "-", color: "red" },
-	context: { symbol: " ", color: "gray" },
+	add: { symbol: "+", color: theme.diffAdd },
+	remove: { symbol: "-", color: theme.diffRemove },
+	context: { symbol: " ", color: theme.diffContext },
 };
 
 function DiffView({ diff }: { diff: string }) {
@@ -291,11 +391,11 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	return (
 		<Box flexDirection="column">
 			<Box flexDirection="row" gap={1}>
-				<Text color="yellow" bold>{tool.name}</Text>
-				<Text color="gray">{tool.input}</Text>
-				{diffSummary && <Text color="gray">({diffSummary})</Text>}
+				<Text color={theme.warning} bold>{tool.name}</Text>
+				<Text color={theme.textMuted}>{tool.input}</Text>
+				{diffSummary && <Text color={theme.textMuted}>({diffSummary})</Text>}
 			</Box>
-			{showDiff ? <DiffView diff={tool.diff!} /> : output ? <Text color="gray">{output}</Text> : null}
+			{showDiff ? <DiffView diff={tool.diff!} /> : output ? <Text color={theme.textMuted}>{output}</Text> : null}
 		</Box>
 	);
 }
@@ -331,10 +431,10 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	if (msg.role === "user") {
 		return (
 			<Box flexDirection="row" gap={1}>
-				<Text color="green" bold>
+				<Text color={theme.success} bold>
 					❯
 				</Text>
-				<Text flex color="white">
+				<Text flex color={theme.text}>
 					{msg.content}
 				</Text>
 			</Box>
@@ -350,7 +450,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 			{hasText
 				? (
 					<Box flexDirection="row" gap={1}>
-						<Text color="blue" bold>
+						<Text color={theme.info} bold>
 							●
 						</Text>
 						<Markdown flex>{msg.content}</Markdown>
@@ -464,7 +564,10 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 	};
 
 	const runSubmission = async (value: string, ac: AbortController) => {
-		await session.value.append({ type: "message", role: "user", content: value });
+		// Resolve @mentions: read file/directory contents and append as context
+		const expandedValue = await expandMentions(value);
+
+		await session.value.append({ type: "message", role: "user", content: expandedValue });
 		const messages = entriesToMessages(session.value.getEntries());
 
 		const draft = { text: "", toolCalls: [] as UIToolCall[], msgIndex: -1 };
@@ -538,8 +641,9 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				}
 				case "message_complete": {
 					if (event.usage) {
-						tokenCount.value += event.usage.prompt_tokens + event.usage.completion_tokens;
+						tokenCount.value = event.usage.prompt_tokens + event.usage.completion_tokens;
 						if (event.usage.cost) totalCost.value += event.usage.cost;
+						session.value.setTokens(tokenCount.value);
 					}
 					if (event.generationId) {
 						const sid = sessionId.value;
@@ -547,7 +651,8 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 							if (!stats || sessionId.value !== sid) return;
 							if (stats.totalCost !== null) totalCost.value += stats.totalCost;
 							if (!event.usage && stats.promptTokens !== null && stats.completionTokens !== null) {
-								tokenCount.value += stats.promptTokens + stats.completionTokens;
+								tokenCount.value = stats.promptTokens + stats.completionTokens;
+								session.value.setTokens(tokenCount.value);
 							}
 						});
 					}
@@ -610,7 +715,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			SessionManager.open(item.id).then((sm) => {
 				session.value = sm;
 				uiMessages.value = entriesToUIMessages(sm.getEntries());
-				tokenCount.value = 0;
+				tokenCount.value = sm.getTokens();
 				totalCost.value = 0;
 				sessionId.value++;
 			});
@@ -699,12 +804,18 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				)}
 
 			<Box height={1} />
-			<Box border="round" borderColor="white" borderLabel={mode.value} borderLabelColor="white" padding={1}>
+			<Box
+				border="round"
+				borderColor={theme.border}
+				borderLabel={mode.value}
+				borderLabelColor={theme.borderLabel}
+				padding={1}
+			>
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}
-					placeholder="Awaiting instructions..."
-					placeholderColor="gray"
+					placeholder="What can I help you build?"
+					placeholderColor={theme.textDim}
 					focused={!pendingPermission.value}
 				/>
 			</Box>
@@ -713,25 +824,25 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				<Box flexDirection="row" gap={1}>
 					{isLoading.value && (
 						<>
-							<Spinner color="cyan" />
-							<Text color="gray" bold italic>
+							<Spinner color={theme.accent} />
+							<Text color={theme.textMuted} bold italic>
 								{formatStatus(status.value)}
 							</Text>
 							{escPrimed.value
 								? (
-									<Text color="yellow" bold>
+									<Text color={theme.warning} bold>
 										Press Esc again to cancel
 									</Text>
 								)
 								: (
-									<Text color="gray" italic>
+									<Text color={theme.textDim} italic>
 										Esc to cancel
 									</Text>
 								)}
 						</>
 					)}
 				</Box>
-				<Text color="gray" italic>
+				<Text color={theme.textDim} italic>
 					Enter to send • @ for files • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode
 				</Text>
 			</Box>

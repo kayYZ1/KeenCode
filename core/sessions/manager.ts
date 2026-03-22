@@ -68,6 +68,7 @@ export class SessionManager {
 	private session: Session;
 	private path: string | null;
 	private needsFlush: boolean;
+	private headerDirty = false;
 
 	private constructor(session: Session, path: string | null, needsFlush = false) {
 		this.session = session;
@@ -195,6 +196,27 @@ export class SessionManager {
 		return this.path;
 	}
 
+	/** Get the current token count from the session header. */
+	getTokens(): number {
+		return this.session.header.tokens ?? 0;
+	}
+
+	/** Update the token count in the session header (persisted on next append or flush). */
+	setTokens(tokens: number): void {
+		this.session.header.tokens = tokens;
+		this.headerDirty = true;
+	}
+
+	/** Flush a dirty header by rewriting the session file. */
+	private async flushHeader(): Promise<void> {
+		if (!this.path || !this.headerDirty) return;
+		const content = await Deno.readTextFile(this.path);
+		const lines = content.split("\n");
+		lines[0] = JSON.stringify(this.session.header);
+		await Deno.writeTextFile(this.path, lines.join("\n"));
+		this.headerDirty = false;
+	}
+
 	/** Append a new entry to the session. Creates the file on first call. */
 	async append(entry: NewEntry): Promise<string> {
 		const id = newId();
@@ -205,6 +227,9 @@ export class SessionManager {
 				await Deno.mkdir(sessionDir(this.session.header.cwd), { recursive: true });
 				await Deno.writeTextFile(this.path, JSON.stringify(this.session.header) + "\n");
 				this.needsFlush = false;
+				this.headerDirty = false;
+			} else if (this.headerDirty) {
+				await this.flushHeader();
 			}
 			await Deno.writeTextFile(this.path, JSON.stringify(full) + "\n", { append: true });
 		}

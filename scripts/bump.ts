@@ -22,6 +22,16 @@ switch (part) {
 		break;
 }
 
+// Update version.ts
 const content = `export const VERSION = "${next}";\n`;
 await Deno.writeTextFile("version.ts", content);
+
+// Update README.md
+const readme = await Deno.readTextFile("README.md");
+const updatedReadme = readme.replace(
+	/KeenCode v\d+\.\d+\.\d+/,
+	`KeenCode v${next}`,
+);
+await Deno.writeTextFile("README.md", updatedReadme);
+
 console.log(`${VERSION} → ${next}`);

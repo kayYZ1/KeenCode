@@ -10,6 +10,7 @@ export interface SessionHeader {
 	id: string;
 	timestamp: string;
 	cwd: string;
+	tokens?: number;
 }
 
 // ---------------------------------------------------------------------------

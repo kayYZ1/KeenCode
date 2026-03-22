@@ -1,3 +1,5 @@
+import { theme } from "@/tui/theme.ts";
+
 /** Represents a parsed markdown segment with styling */
 export interface MarkdownSegment {
 	text: string;
@@ -92,10 +94,10 @@ function parseInlineFormatting(text: string): MarkdownSegment[] {
 			underline: match.underline,
 			strikethrough: match.strikethrough,
 			code: match.code,
-			color: match.code ? "gray" : match.url ? "cyan" : undefined,
+			color: match.code ? theme.codeInline : match.url ? theme.link : undefined,
 		});
 		if (match.url) {
-			segments.push({ text: ` (${match.url})`, color: "gray" });
+			segments.push({ text: ` (${match.url})`, color: theme.linkUrl });
 		}
 		pos = match.end;
 	}
@@ -111,20 +113,20 @@ function parseInlineFormatting(text: string): MarkdownSegment[] {
 function colorizeCodeLine(line: string, language: string | undefined): MarkdownSegment[] {
 	if (language === "diff") {
 		if (line.startsWith("+++") || line.startsWith("---")) {
-			return [{ text: line, code: true, bold: true, color: "white" }];
+			return [{ text: line, code: true, bold: true, color: theme.text }];
 		}
 		if (line.startsWith("@@")) {
-			return [{ text: line, code: true, color: "cyan" }];
+			return [{ text: line, code: true, color: theme.accent }];
 		}
 		if (line.startsWith("+")) {
-			return [{ text: line, code: true, color: "green" }];
+			return [{ text: line, code: true, color: theme.diffAdd }];
 		}
 		if (line.startsWith("-")) {
-			return [{ text: line, code: true, color: "red" }];
+			return [{ text: line, code: true, color: theme.diffRemove }];
 		}
-		return [{ text: line, code: true, color: "gray" }];
+		return [{ text: line, code: true, color: theme.codeBlock }];
 	}
-	return [{ text: line, code: true, color: "gray" }];
+	return [{ text: line, code: true, color: theme.codeBlock }];
 }
 
 /** Parse markdown text into structured lines */
@@ -168,7 +170,7 @@ export function parseMarkdown(content: string): MarkdownLine[] {
 		if (/^(-{3,}|\*{3,}|_{3,})$/.test(trimmed)) {
 			result.push({
 				type: "hr",
-				segments: [{ text: "─".repeat(40), color: "gray" }],
+				segments: [{ text: "─".repeat(40), color: theme.hr }],
 			});
 			continue;
 		}
@@ -178,7 +180,7 @@ export function parseMarkdown(content: string): MarkdownLine[] {
 		if (h3Match) {
 			result.push({
 				type: "heading3",
-				segments: [{ text: h3Match[1], bold: true, color: "cyan" }],
+				segments: [{ text: h3Match[1], bold: true, color: theme.heading3 }],
 			});
 			continue;
 		}
@@ -187,7 +189,7 @@ export function parseMarkdown(content: string): MarkdownLine[] {
 		if (h2Match) {
 			result.push({
 				type: "heading2",
-				segments: [{ text: h2Match[1], bold: true, color: "blue" }],
+				segments: [{ text: h2Match[1], bold: true, color: theme.heading2 }],
 			});
 			continue;
 		}
@@ -196,7 +198,7 @@ export function parseMarkdown(content: string): MarkdownLine[] {
 		if (h1Match) {
 			result.push({
 				type: "heading1",
-				segments: [{ text: h1Match[1], bold: true, color: "magenta" }],
+				segments: [{ text: h1Match[1], bold: true, color: theme.heading1 }],
 			});
 			continue;
 		}
@@ -207,7 +209,7 @@ export function parseMarkdown(content: string): MarkdownLine[] {
 			result.push({
 				type: "blockquote",
 				segments: [
-					{ text: "│ ", color: "gray" },
+					{ text: "│ ", color: theme.blockquote },
 					...parseInlineFormatting(quoteMatch[1]).map((s) => ({ ...s, italic: true })),
 				],
 			});
@@ -223,7 +225,7 @@ export function parseMarkdown(content: string): MarkdownLine[] {
 			result.push({
 				type: "listItem",
 				segments: [
-					{ text: `${padding}${bullet}`, color: "gray" },
+					{ text: `${padding}${bullet}`, color: theme.listBullet },
 					...parseInlineFormatting(indentedListMatch[3]),
 				],
 				indent,
@@ -239,7 +241,7 @@ export function parseMarkdown(content: string): MarkdownLine[] {
 			result.push({
 				type: "listItem",
 				segments: [
-					{ text: `${padding}${numListMatch[2]}. `, color: "gray" },
+					{ text: `${padding}${numListMatch[2]}. `, color: theme.listBullet },
 					...parseInlineFormatting(numListMatch[3]),
 				],
 				indent,

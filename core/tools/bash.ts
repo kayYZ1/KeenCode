@@ -6,7 +6,7 @@ const DEFAULT_TIMEOUT = 30_000;
 export const bashTool = defineTool({
 	name: "bash",
 	description:
-		"Execute a shell command and return its output. Use for running programs, installing packages, or any system operation. Commands run in the current working directory.",
+		"Execute a shell command. Use only for running project scripts (e.g. deno task, npm run), build/test commands, git operations, and installing packages. Do NOT use bash for file reading, searching, or directory listing — use the dedicated tools (read_file, grep, glob) instead. Commands run in the current working directory.",
 	requiresPermission: true,
 	parameters: {
 		type: "object",

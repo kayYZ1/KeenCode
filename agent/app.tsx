@@ -58,7 +58,15 @@ const SYSTEM_PROMPT = await Deno.readTextFile(new URL("./system-prompt.md", impo
 const MENTION_RE = /@([\w./_-]+\/?)/g;
 const MAX_MENTION_OUTPUT = 10_000;
 const MENTION_IGNORE_DIRS = new Set([
-	".git", "node_modules", "dist", "out", "build", "coverage", ".next", "target", ".cache",
+	".git",
+	"node_modules",
+	"dist",
+	"out",
+	"build",
+	"coverage",
+	".next",
+	"target",
+	".cache",
 ]);
 
 async function readDirRecursive(absDir: string, relDir: string): Promise<string> {
@@ -319,7 +327,8 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 		<Box flexDirection="row" gap={1}>
 			<Text color={theme.textDim}>tokens</Text>
 			<Text color={filled > 0 ? color : theme.textDim}>
-				{"█".repeat(filled)}{"░".repeat(empty)}
+				{"█".repeat(filled)}
+				{"░".repeat(empty)}
 			</Text>
 			<Text color={color}>{formatTokens(tokenCount)}</Text>
 			<Text color={theme.textDim}>/ {CONTEXT_WINDOW_LABEL}</Text>
@@ -795,7 +804,13 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				)}
 
 			<Box height={1} />
-			<Box border="round" borderColor={theme.border} borderLabel={mode.value} borderLabelColor={theme.borderLabel} padding={1}>
+			<Box
+				border="round"
+				borderColor={theme.border}
+				borderLabel={mode.value}
+				borderLabelColor={theme.borderLabel}
+				padding={1}
+			>
 				<TextInput
 					value={input.value}
 					cursorPosition={cursor.value}

@@ -42,9 +42,10 @@ export interface AgentConfig {
 }
 
 const DEFAULT_MAX_TOOL_ROUNDS = 30;
-const REFLECTION_INTERVAL = 6;
+const REFLECTION_INTERVAL = 12;
 const MAX_API_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1000;
+const STREAM_TIMEOUT_MS = 120_000; // 2 min max silence from LLM stream
 
 // ---------------------------------------------------------------------------
 // Agent loop (async generator)
@@ -61,9 +62,6 @@ export async function* run(
 		{ role: "system", content: config.systemPrompt },
 		...messages,
 	];
-
-	// Tools that directly mutate the filesystem (not bash — bash commands are often read-only)
-	const MUTATING_TOOLS = new Set(["write_file", "edit_file"]);
 
 	const recentCallSignatures: string[] = [];
 
@@ -105,7 +103,7 @@ export async function* run(
 					signal: config.signal,
 				});
 
-				for await (const chunk of stream) {
+				for await (const chunk of withStreamTimeout(stream, STREAM_TIMEOUT_MS)) {
 					if (chunk.id) generationId = chunk.id;
 					if (chunk.usage) lastUsage = chunk.usage;
 
@@ -154,7 +152,7 @@ export async function* run(
 
 		yield { type: "message_complete", usage: lastUsage, generationId };
 
-		// If no tool calls, we're done — emit final turn and exit
+		// If no tool calls, the LLM considers the task complete.
 		if (toolCalls.length === 0) {
 			yield { type: "turn_complete", assistantMessage, toolResults: [] };
 			return;
@@ -208,17 +206,6 @@ export async function* run(
 
 		yield { type: "turn_complete", assistantMessage, toolResults: toolResultMessages };
 
-		// Grounding: only nudge verification after tools that directly mutate files (not bash)
-		const mutatingCalls = sideEffectCalls.filter((tc) => MUTATING_TOOLS.has(tc.function.name));
-		if (mutatingCalls.length > 0) {
-			const toolNames = mutatingCalls.map((tc) => tc.function.name).join(", ");
-			context.push({
-				role: "user",
-				content:
-					`[system note] You just ran file-mutating tools (${toolNames}). Verify your changes worked as expected before proceeding.`,
-			});
-		}
-
 		// Loop back to call the LLM again with tool results
 	}
 
@@ -236,7 +223,34 @@ function isRetryableError(err: unknown): boolean {
 		msg.includes("network") ||
 		msg.includes("ECONNRESET") ||
 		msg.includes("fetch failed") ||
-		msg.includes("ETIMEDOUT");
+		msg.includes("ETIMEDOUT") ||
+		msg.includes("Stream timeout");
+}
+
+async function* withStreamTimeout<T>(
+	stream: AsyncIterable<T>,
+	timeoutMs: number,
+): AsyncGenerator<T> {
+	const iterator = stream[Symbol.asyncIterator]();
+	while (true) {
+		let timer: ReturnType<typeof setTimeout>;
+		let result: IteratorResult<T>;
+		try {
+			result = await Promise.race([
+				iterator.next(),
+				new Promise<never>((_, reject) => {
+					timer = setTimeout(
+						() => reject(new Error(`Stream timeout: no data received for ${timeoutMs / 1000}s`)),
+						timeoutMs,
+					);
+				}),
+			]);
+		} finally {
+			clearTimeout(timer!);
+		}
+		if (result.done) break;
+		yield result.value;
+	}
 }
 
 async function executeTool(

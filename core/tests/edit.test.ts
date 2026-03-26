@@ -31,14 +31,6 @@ Deno.test("edit_file - replaces a unique match", async () => {
 	});
 });
 
-Deno.test("edit_file - returns diff output", async () => {
-	await withFile("line1\nline2\nline3\n", async (path) => {
-		const result = await editFileTool.execute({ path, old_str: "line2", new_str: "modified" });
-		assertEquals(result.content.includes("-line2"), true);
-		assertEquals(result.content.includes("+modified"), true);
-	});
-});
-
 Deno.test("edit_file - errors on no match", async () => {
 	await withFile("hello world\n", async (path) => {
 		const result = await editFileTool.execute({ path, old_str: "not here", new_str: "x" });

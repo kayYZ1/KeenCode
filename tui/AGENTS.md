@@ -9,13 +9,13 @@ for rendering.
 tui/
 ├── core/                       # Low-level terminal handling
 │   ├── index.ts                # Re-exports Terminal
+│   ├── ansi.ts                 # ANSI escape code constants (cursor, screen, mouse)
 │   ├── terminal.ts             # Terminal buffer, rendering, cursor control
 │   ├── input.ts                # Keyboard input handling
 │   └── primitives/             # Drawing primitives
 │       ├── color.ts            # Color parsing and ANSI conversion
 │       ├── draw-box.ts         # Box/border rendering with styles
 │       ├── format-text.ts      # Text styling (bold, italic, colors)
-│       ├── parse-diff.ts       # Unified diff parser (formatDiffForDisplay)
 │       ├── parse-markdown.ts   # Markdown-to-segments parser
 │       └── wrap-text.ts        # Text wrapping utilities
 ├── render/                     # JSX rendering layer
@@ -46,7 +46,6 @@ tui/
 ├── playground/                 # Example apps
 │   ├── agent.tsx               # Agent UI demo
 │   ├── command-palette.tsx     # Command palette demo
-│   ├── diff.tsx                # Diff rendering demo
 │   ├── layout.tsx              # Flexbox layout demo
 │   ├── markdown.tsx            # Markdown rendering demo
 │   ├── scroll-area.tsx         # Scroll area demo
@@ -54,13 +53,13 @@ tui/
 │   ├── text-input.tsx          # Text input demo
 │   ├── text-styling.tsx        # Text styling demo
 │   └── welcome.tsx             # Welcome screen demo
-└── tests/
-    ├── input-parsing.test.ts   # Input parsing tests
-    ├── jsx-runtime.test.ts     # JSX runtime tests
-    ├── parse-diff.test.ts      # Diff parser tests
-    ├── text-input-cursor.test.ts # Text input cursor tests
-    ├── text-utils.test.ts      # Text utility tests
-    └── wrap-text.test.ts       # Text wrapping tests
+├── tests/
+│   ├── input-parsing.test.ts   # Input parsing tests
+│   ├── jsx-runtime.test.ts     # JSX runtime tests
+│   ├── text-input-cursor.test.ts # Text input cursor tests
+│   ├── text-utils.test.ts      # Text utility tests
+│   └── wrap-text.test.ts       # Text wrapping tests
+└── theme.ts                    # Centralized color theme (hex colors for all UI elements)
 ```
 
 ## Key Concepts

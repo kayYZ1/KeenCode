@@ -22,11 +22,6 @@ export const theme = {
 	textMuted: "#94a3b8", // slate gray — secondary text, descriptions, placeholders
 	textDim: "#64748b", // dim slate — disabled, line numbers, hints
 
-	// Diff
-	diffAdd: "#4ade80", // bright green
-	diffRemove: "#fb7185", // rose pink
-	diffContext: "#64748b", // dim slate
-
 	// UI chrome
 	border: "#a78bfa", // soft violet — borders, frames
 	borderLabel: "#c4b5fd", // light violet — border labels

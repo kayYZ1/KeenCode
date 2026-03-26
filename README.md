@@ -104,22 +104,32 @@ The agent loop is an async generator (`run()`) that streams `AgentEvent`s:
 
 **Built-in tools:**
 
-| Tool         | Description                      |
-| ------------ | -------------------------------- |
-| `bash`       | Execute shell commands           |
-| `read_file`  | Read file contents               |
-| `write_file` | Write/create files               |
-| `edit_file`  | Edit files (find-and-replace)    |
-| `grep`       | Search files with regex patterns |
-| `glob`       | Find files by glob pattern       |
+| Tool (internal) | Display Name | Description                      |
+| --------------- | ------------ | -------------------------------- |
+| `bash`          | Run          | Execute shell commands           |
+| `read_file`     | Read         | Read file contents               |
+| `write_file`    | Write        | Write/create files               |
+| `edit_file`     | Edit         | Edit files (find-and-replace)    |
+| `grep`          | Grep         | Search files with regex patterns |
+| `glob`          | Search       | Find files by glob pattern       |
 
-**Session persistence** — Conversations are saved to `~/.keencode/sessions/` with automatic session management (create,
-list, resume, delete).
+**Session persistence** — Conversations are saved to `~/.keencode/sessions/` as JSONL files with automatic session
+management:
+
+- **Create** — New sessions with unique IDs and timestamps
+- **Continue** — Resume the most recent session for a workspace
+- **Open** — Load a specific session by file path
+- **List** — Browse all sessions with summaries (first user message preview)
+- **Cleanup** — Automatic retention of the 7 most recent sessions
+- **Token tracking** — Per-session token counts persisted in headers
+
+Sessions store a header (metadata) followed by entries: user/assistant messages and tool results.
 
 ### `tui/` — Terminal UI Framework
 
 A custom terminal UI framework with:
 
+- `theme.ts` — Centralized color theme
 - **Custom JSX runtime** — Compiles JSX to VNodes, reconciles instance trees
 - **Yoga layout** — Full flexbox support (direction, justify, align, wrap, gap, padding, absolute positioning)
 - **Double-buffered rendering** — Flicker-free differential updates
@@ -151,6 +161,7 @@ A custom terminal UI framework with:
 
 Ties everything together into the interactive terminal agent:
 
+- `system-prompt.md` — The system prompt for the agent
 - Status bar with git branch, token usage progress bar, and cost tracking
 - Scrollable chat history with markdown rendering
 - Streaming tool call display

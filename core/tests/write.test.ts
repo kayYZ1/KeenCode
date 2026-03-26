@@ -38,23 +38,6 @@ Deno.test("write_file - overwrites existing file", async () => {
 	});
 });
 
-Deno.test("write_file - returns diff output in content", async () => {
-	await withFile("old line\n", async (path) => {
-		const result = await writeFileTool.execute({ path, content: "new line\n" });
-		assertEquals(result.content.includes("-old line"), true);
-		assertEquals(result.content.includes("+new line"), true);
-	});
-});
-
-Deno.test("write_file - returns diff in meta", async () => {
-	await withFile("before\n", async (path) => {
-		const result = await writeFileTool.execute({ path, content: "after\n" });
-		assertEquals(typeof result.meta?.diff, "string");
-		assertEquals((result.meta!.diff as string).includes("-before"), true);
-		assertEquals((result.meta!.diff as string).includes("+after"), true);
-	});
-});
-
 Deno.test("write_file - handles writing empty content", async () => {
 	const path = `${TMP_DIR}/empty-${crypto.randomUUID()}.txt`;
 	try {

@@ -11,7 +11,7 @@ Terminal-based coding agent with custom TUI framework.
 ├── tui/          # Terminal UI framework (see tui/AGENTS.md)
 ├── scripts/      # Build and version bump scripts
 ├── dist/         # Compiled binary output
-├── version.ts    # Version constant (e.g., "0.3.5")
+├── version.ts    # Version constant (e.g., "0.4.3")
 ├── deno.json     # Deno configuration with tasks and import maps
 ```
 
@@ -54,7 +54,6 @@ Tag-based releases via GitHub Actions (`.github/workflows/release.yml`):
 
 - `deno task playground:agent` - Full agent demo (all features)
 - `deno task playground:command-palette` - Command palette demo
-- `deno task playground:diff` - Diff rendering demo
 - `deno task playground:layout` - Box layout and borders demo
 - `deno task playground:markdown` - Markdown rendering demo
 - `deno task playground:scroll-area` - Scroll area demo

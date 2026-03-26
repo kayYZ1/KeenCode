@@ -62,9 +62,9 @@ When working in an empty or new directory:
 
 ## Self-Review
 
-After completing a task, briefly review the changes you made using read_file. Check for bugs, typos, or logic errors.
-Fix any issues found before reporting the task as done. Do not run extra shell commands to verify unless the task
-specifically requires running tests or builds.
+After the overall task is complete, briefly review your changes using read_file. Check for bugs, typos, or logic errors.
+Fix any issues found before reporting the task as done. Do not verify individual steps mid-task — only verify once at
+the end. Do not run extra shell commands to verify unless the task specifically requires running tests or builds.
 
 ## Communication
 

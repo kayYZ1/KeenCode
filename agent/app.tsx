@@ -13,12 +13,6 @@ import {
 	TextInput,
 	WelcomeScreen,
 } from "@/tui/render/components.tsx";
-import {
-	type DisplayDiffLine,
-	formatDiffForDisplay,
-	shouldShowDiff,
-	summarizeDiff,
-} from "@/tui/core/primitives/parse-diff.ts";
 import { getHookKey, hasCleanup, setCleanup, useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
@@ -155,7 +149,6 @@ interface UIToolCall {
 	name: string;
 	input: string;
 	output: string;
-	diff?: string;
 }
 
 interface UIMessage {
@@ -355,46 +348,29 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 	);
 }
 
-const DIFF_INDICATOR: Record<DisplayDiffLine["type"], { symbol: string; color: string }> = {
-	add: { symbol: "+", color: theme.diffAdd },
-	remove: { symbol: "-", color: theme.diffRemove },
-	context: { symbol: " ", color: theme.diffContext },
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+	read_file: "Read",
+	write_file: "Write",
+	edit_file: "Edit",
+	glob: "Search",
+	grep: "Grep",
+	bash: "Run",
 };
 
-function DiffView({ diff }: { diff: string }) {
-	const lines = formatDiffForDisplay(diff);
-	const maxNum = lines.reduce((m, l) => Math.max(m, l.newNum ?? 0, l.oldNum ?? 0), 0);
-	const numWidth = String(maxNum).length;
-
-	return (
-		<Box flexDirection="column">
-			{lines.map((line, i) => {
-				const { symbol, color } = DIFF_INDICATOR[line.type];
-				const num = line.newNum ?? line.oldNum;
-				const lineNum = num !== null ? String(num).padStart(numWidth) : " ".repeat(numWidth);
-				return (
-					<Text key={i} color={color}>
-						{`  ${lineNum} ${symbol} ${line.code}`}
-					</Text>
-				);
-			})}
-		</Box>
-	);
+function getToolDisplayName(name: string): string {
+	return TOOL_DISPLAY_NAMES[name] ?? name;
 }
 
 function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
-	const showDiff = tool.diff && shouldShowDiff(tool.diff);
-	const diffSummary = tool.diff && !showDiff ? summarizeDiff(tool.diff) : null;
 
 	return (
 		<Box flexDirection="column">
 			<Box flexDirection="row" gap={1}>
-				<Text color={theme.warning} bold>{tool.name}</Text>
+				<Text color={theme.warning} bold>{getToolDisplayName(tool.name)}</Text>
 				<Text color={theme.textMuted}>{tool.input}</Text>
-				{diffSummary && <Text color={theme.textMuted}>({diffSummary})</Text>}
 			</Box>
-			{showDiff ? <DiffView diff={tool.diff!} /> : output ? <Text color={theme.textMuted}>{output}</Text> : null}
+			{output ? <Text color={theme.textMuted}>{output}</Text> : null}
 		</Box>
 	);
 }
@@ -471,7 +447,8 @@ function entriesToUIMessages(entries: Entry[]): UIMessage[] {
 
 	for (const entry of entries) {
 		if (entry.type === "message" && entry.role === "user" && typeof entry.content === "string") {
-			messages.push({ role: "user", content: entry.content });
+			const displayContent = entry.content.replace(/\n\n<attached_context>[\s\S]*<\/attached_context>$/, "");
+			messages.push({ role: "user", content: displayContent });
 		} else if (entry.type === "message" && entry.role === "assistant") {
 			const toolCalls: UIToolCall[] = entry.toolCalls?.map((tc) => {
 				const uiTc = createUIToolCall(tc.function.name, tc.function.arguments);
@@ -631,7 +608,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 							draft.toolCalls[idx] = {
 								...draft.toolCalls[idx],
 								output: event.result.content,
-								diff: event.result.meta?.diff,
 							};
 						}
 						shouldSync = true;

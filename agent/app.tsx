@@ -349,12 +349,12 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 }
 
 const TOOL_DISPLAY_NAMES: Record<string, string> = {
-	read_file: "Read",
-	write_file: "Write",
-	edit_file: "Edit",
-	glob: "Search",
-	grep: "Grep",
-	bash: "Run",
+	read_file: "read",
+	write_file: "write",
+	edit_file: "edit",
+	glob: "search",
+	grep: "grep",
+	bash: "run",
 };
 
 function getToolDisplayName(name: string): string {

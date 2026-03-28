@@ -1,16 +1,8 @@
 import { join } from "@std/path/join";
+import { keencodeDir } from "@/core/paths.ts";
 
 interface AuthData {
 	apiKey: string;
-}
-
-function getAuthPath(): string {
-	const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
-	if (!home) {
-		console.error("Cannot determine home directory. Set HOME or USERPROFILE.");
-		Deno.exit(1);
-	}
-	return join(home, ".keencode", "auth.json");
 }
 
 function loadAuthFile(path: string): AuthData | null {
@@ -47,7 +39,7 @@ async function promptAndSave(path: string): Promise<AuthData> {
 		Deno.exit(1);
 	}
 
-	const dir = join(path, "..");
+	const dir = keencodeDir();
 	Deno.mkdirSync(dir, { recursive: true });
 
 	const data: AuthData = { apiKey: key };
@@ -58,7 +50,7 @@ async function promptAndSave(path: string): Promise<AuthData> {
 }
 
 export async function loadApiKey(): Promise<string> {
-	const path = getAuthPath();
+	const path = join(keencodeDir(), "auth.json");
 	const existing = loadAuthFile(path);
 	if (existing) return existing.apiKey;
 	const created = await promptAndSave(path);

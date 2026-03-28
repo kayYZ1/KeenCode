@@ -119,10 +119,10 @@ function colorizeCodeLine(line: string, language: string | undefined): MarkdownS
 			return [{ text: line, code: true, color: theme.accent }];
 		}
 		if (line.startsWith("+")) {
-			return [{ text: line, code: true, color: theme.diffAdd }];
+			return [{ text: line, code: true, color: theme.success }];
 		}
 		if (line.startsWith("-")) {
-			return [{ text: line, code: true, color: theme.diffRemove }];
+			return [{ text: line, code: true, color: theme.error }];
 		}
 		return [{ text: line, code: true, color: theme.codeBlock }];
 	}

@@ -1,18 +1,12 @@
 import { join } from "@std/path/join";
-
-const AGENT_DIR = ".keencode";
+import { keencodeDir } from "@/core/paths.ts";
 
 function getUsername(): string | undefined {
 	return Deno.env.get("USER") ?? Deno.env.get("USERNAME");
 }
 
-function getHomeDir(): string | undefined {
-	return Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
-}
-
 export function sessionsBaseDir(): string {
-	const home = getHomeDir() ?? ".";
-	return join(home, AGENT_DIR, "sessions");
+	return join(keencodeDir(), "sessions");
 }
 
 export function sessionDir(_cwd: string): string {

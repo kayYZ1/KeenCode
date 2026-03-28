@@ -307,7 +307,7 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 	const ratio = Math.min(tokenCount / CONTEXT_WINDOW, 1);
 	const filled = Math.round(ratio * TOKEN_BAR_WIDTH);
 	const empty = TOKEN_BAR_WIDTH - filled;
-	const color = ratio >= 0.8 ? theme.tokenHigh : ratio >= 0.5 ? theme.tokenMid : theme.tokenLow;
+	const color = ratio >= 0.8 ? theme.error : ratio >= 0.5 ? theme.warning : theme.success;
 
 	return (
 		<Box flexDirection="row" gap={1}>

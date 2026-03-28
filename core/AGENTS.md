@@ -76,7 +76,8 @@ interface Tool {
 }
 ```
 
-Built-in tools (`defaultTools`): `bash` (Run), `read_file` (Read), `write_file` (Write), `edit_file` (Edit), `grep` (Grep), `glob` (Search)
+Built-in tools (`defaultTools`): `bash` (Run), `read_file` (Read), `write_file` (Write), `edit_file` (Edit), `grep`
+(Grep), `glob` (Search)
 
 ### Context Management
 

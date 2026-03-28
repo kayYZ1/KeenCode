@@ -55,7 +55,8 @@ Built with the TUI framework, all defined in `app.tsx`:
 - `TokenBar` - Color-coded progress bar for context window usage (200k)
 - `PermissionDialog` - Tool permission approval dialog (once/chat/session/deny)
 - `MessageView` - Renders user and agent messages with markdown
-- `ToolCallView` - Displays tool calls with user-friendly names (Read, Write, Edit, Search, Grep, Run), input summary, output, and diffs
+- `ToolCallView` - Displays tool calls with user-friendly names (Read, Write, Edit, Search, Grep, Run), input summary,
+  output, and diffs
 - `DiffView` - Renders unified diffs with syntax coloring
 - Reactive state via `useSignal`
 - Vim-style input via `useTextInput`
@@ -76,7 +77,6 @@ Built with the TUI framework, all defined in `app.tsx`:
 - `@/api` - LLM provider (`CompletionsProvider`)
 - `@/core` - Agent loop (`run`) and tools (`defaultTools`, `createToolRegistry`)
 - `@/tui` - Terminal UI framework (components, hooks, input manager)
-- `@std/dotenv` - Environment variable loading
 
 ## Running
 

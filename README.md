@@ -28,13 +28,9 @@ chmod +x keencode
 sudo mv keencode /usr/local/bin/
 ```
 
-KeenCode requires an API key:
+On first run, KeenCode will prompt you for an API key and save it to `~/.keencode/auth.json`.
 
-```bash
-export LLM_API_KEY="your-api-key"
-```
-
-By default it uses OpenRouter with `moonshotai/kimi-k2.5`. These defaults can be changed in `agent/config.ts`.
+Model and provider settings are configured in `agent/config.ts`.
 
 ## Quick Start
 

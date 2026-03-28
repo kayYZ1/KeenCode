@@ -19,20 +19,16 @@ import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/c
 import { inputManager } from "@/tui/core/input.ts";
 import { useProjectFiles } from "./hooks/project-files.ts";
 import { config } from "./config.ts";
+import { loadApiKey } from "./auth.ts";
 import { theme } from "@/tui/theme.ts";
 import { VERSION } from "@/version.ts";
-import "@std/dotenv/load";
 import SYSTEM_PROMPT from "./system-prompt.md" with { type: "text" };
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const apiKey = Deno.env.get("LLM_API_KEY");
-if (!apiKey) {
-	console.error("Missing API key. Set it with: export LLM_API_KEY=<your-openrouter-key>");
-	Deno.exit(1);
-}
+const apiKey = await loadApiKey();
 
 const branchName = await new Deno.Command("git", {
 	args: ["branch", "--show-current"],
@@ -298,10 +294,8 @@ function formatStatus(status: AgentStatus): string {
 // Components
 // ---------------------------------------------------------------------------
 
-const CONTEXT_WINDOW = 200_000;
+const CONTEXT_WINDOW = config.maxTokens;
 const TOKEN_BAR_WIDTH = 20;
-
-const CONTEXT_WINDOW_LABEL = "200k";
 
 function formatTokens(n: number): string {
 	if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -323,7 +317,7 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 				{"░".repeat(empty)}
 			</Text>
 			<Text color={color}>{formatTokens(tokenCount)}</Text>
-			<Text color={theme.textDim}>/ {CONTEXT_WINDOW_LABEL}</Text>
+			<Text color={theme.textDim}>/ {formatTokens(CONTEXT_WINDOW)}</Text>
 		</Box>
 	);
 }
@@ -566,8 +560,8 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			tools,
 			model: config.model,
 			systemPrompt: SYSTEM_PROMPT,
-			temperature: 0.6,
-			contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
+			temperature: config.temperature,
+			contextLimit: { maxTokens: config.maxTokens, preserveRecentTurns: config.preserveRecentTurns },
 			signal: ac.signal,
 			onPermissionRequest,
 		});

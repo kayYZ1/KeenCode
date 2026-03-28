@@ -304,11 +304,16 @@ function validateToolArgs(toolName: string, args: unknown): string | null {
 
 	if (toolName === "bash" && typeof a.command === "string") {
 		if (/^:[a-zA-Z]/.test(a.command)) {
-			return `Invalid command: "${a.command}". Do not prefix commands with ":". Provide the raw shell command, e.g. "${a.command.slice(1)}".`;
+			return `Invalid command: "${a.command}". Do not prefix commands with ":". Provide the raw shell command, e.g. "${
+				a.command.slice(1)
+			}".`;
 		}
 	}
 
-	if ((toolName === "write_file" || toolName === "edit_file" || toolName === "read_file") && typeof a.path === "string") {
+	if (
+		(toolName === "write_file" || toolName === "edit_file" || toolName === "read_file") &&
+		typeof a.path === "string"
+	) {
 		if (a.path === ":" || /^:[a-zA-Z]/.test(a.path)) {
 			return `Invalid path: "${a.path}". Do not prefix file paths with ":". Provide a valid relative file path.`;
 		}

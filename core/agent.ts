@@ -270,10 +270,7 @@ async function executeTool(
 		return { tc, result: enrichError(tc.function.name, tc.function.arguments, "invalid_args") };
 	}
 
-	const argsError = validateToolArgs(tc.function.name, parsedArgs);
-	if (argsError) {
-		return { tc, result: { content: argsError, isError: true } };
-	}
+	sanitizeToolArgs(tc.function.name, parsedArgs);
 
 	if (tool.requiresPermission && onPermissionRequest) {
 		const decision = await onPermissionRequest(tc.function.name, parsedArgs);
@@ -298,15 +295,13 @@ async function executeTool(
 	}
 }
 
-function validateToolArgs(toolName: string, args: unknown): string | null {
-	if (typeof args !== "object" || args === null) return null;
+function sanitizeToolArgs(toolName: string, args: unknown): void {
+	if (typeof args !== "object" || args === null) return;
 	const a = args as Record<string, unknown>;
 
 	if (toolName === "bash" && typeof a.command === "string") {
 		if (/^:[a-zA-Z]/.test(a.command)) {
-			return `Invalid command: "${a.command}". Do not prefix commands with ":". Provide the raw shell command, e.g. "${
-				a.command.slice(1)
-			}".`;
+			a.command = a.command.slice(1);
 		}
 	}
 
@@ -314,12 +309,10 @@ function validateToolArgs(toolName: string, args: unknown): string | null {
 		(toolName === "write_file" || toolName === "edit_file" || toolName === "read_file") &&
 		typeof a.path === "string"
 	) {
-		if (a.path === ":" || /^:[a-zA-Z]/.test(a.path)) {
-			return `Invalid path: "${a.path}". Do not prefix file paths with ":". Provide a valid relative file path.`;
+		if (/^:[a-zA-Z]/.test(a.path)) {
+			a.path = a.path.slice(1);
 		}
 	}
-
-	return null;
 }
 
 type ErrorKind = "unknown_tool" | "invalid_args" | "execution";

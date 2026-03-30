@@ -15,6 +15,7 @@ into an interactive coding assistant that runs entirely in your terminal.
 - **Streaming agent loop** — Async generator that yields events for real-time UI updates as the LLM thinks and uses
   tools
 - **Built-in tools** — Bash, file read/write/edit, grep, and glob for filesystem interaction
+- **Inline diffs** — File write and edit operations display colored unified diffs with line numbers
 - **Markdown rendering** — Inline markdown display in the terminal with syntax highlighting
 - **Command palette** — Fuzzy-searchable command menu
 
@@ -104,8 +105,8 @@ The agent loop is an async generator (`run()`) that streams `AgentEvent`s:
 | --------------- | ------------ | -------------------------------- |
 | `bash`          | Run          | Execute shell commands           |
 | `read_file`     | Read         | Read file contents               |
-| `write_file`    | Write        | Write/create files               |
-| `edit_file`     | Edit         | Edit files (find-and-replace)    |
+| `write_file`    | Write        | Write/create files (with diff)   |
+| `edit_file`     | Edit         | Edit files with diff output      |
 | `grep`          | Grep         | Search files with regex patterns |
 | `glob`          | Search       | Find files by glob pattern       |
 

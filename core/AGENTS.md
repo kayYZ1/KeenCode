@@ -16,6 +16,7 @@ core/
 │   ├── read.ts           # File reading
 │   ├── write.ts          # File writing
 │   ├── edit.ts           # File editing (find-and-replace)
+│   ├── diff.ts           # Unified diff generation via git diff
 │   ├── grep.ts           # Text search (ripgrep-style)
 │   └── glob.ts           # File pattern matching
 ├── sessions/             # Session persistence
@@ -104,5 +105,7 @@ Built-in tools (`defaultTools`): `bash` (Run), `read_file` (Read), `write_file` 
 - Tools use `defineTool()` helper for consistent structure
 - Tools have a `readonly` flag for parallel execution optimization
 - Use `ToolResult` with `isError` flag for error reporting
+- `ToolResult.meta.diff` carries unified diff output from `write_file` and `edit_file` for UI rendering
+- `diff.ts` uses `git diff --no-index --no-ext-diff` on temp files to bypass user-configured external diff tools
 - Agent loop is an async generator for streaming updates
 - Context trimming uses heuristic token estimation (~4 chars/token)

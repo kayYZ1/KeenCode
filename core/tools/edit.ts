@@ -1,3 +1,4 @@
+import { generateDiff } from "./diff.ts";
 import { defineTool } from "./types.ts";
 
 interface EditInput {
@@ -69,7 +70,8 @@ export const editFileTool = defineTool({
 			await Deno.writeTextFile(path, updated);
 
 			const replaced = replace_all ? `${count} occurrence${count > 1 ? "s" : ""}` : "1 occurrence";
-			return { content: `Replaced ${replaced} in ${path}` };
+			const diff = await generateDiff(original, updated);
+			return { content: `Replaced ${replaced} in ${path}`, meta: { diff } };
 		} catch (err) {
 			return {
 				content: `Failed to edit file: ${err instanceof Error ? err.message : String(err)}`,

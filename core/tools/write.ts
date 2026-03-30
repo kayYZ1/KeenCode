@@ -1,3 +1,4 @@
+import { generateDiff } from "./diff.ts";
 import { defineTool } from "./types.ts";
 
 export const writeFileTool = defineTool({
@@ -32,9 +33,10 @@ export const writeFileTool = defineTool({
 
 			const isNew = original === null;
 			const lines = content.split("\n").length;
+			const diff = await generateDiff(original ?? "", content);
 
 			const message = isNew ? `Created ${path} (${lines} lines)` : `Wrote ${lines} lines to ${path}`;
-			return { content: message };
+			return { content: message, meta: { diff } };
 		} catch (err) {
 			return {
 				content: `Failed to write file: ${err instanceof Error ? err.message : String(err)}`,

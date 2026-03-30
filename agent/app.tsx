@@ -145,6 +145,7 @@ interface UIToolCall {
 	name: string;
 	input: string;
 	output: string;
+	diff?: string;
 }
 
 interface UIMessage {
@@ -355,6 +356,56 @@ function getToolDisplayName(name: string): string {
 	return TOOL_DISPLAY_NAMES[name] ?? name;
 }
 
+const DIFF_HEADER_PREFIXES = ["diff ", "index ", "--- ", "+++ "];
+
+function parseDiffLines(diff: string) {
+	const lines: { lineNo: string; prefix: string; content: string; color: string }[] = [];
+	let oldLine = 0;
+	let newLine = 0;
+
+	for (const line of diff.split("\n")) {
+		if (DIFF_HEADER_PREFIXES.some((p) => line.startsWith(p))) continue;
+		if (line.startsWith("@@")) {
+			const m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)/);
+			if (m) {
+				oldLine = parseInt(m[1]);
+				newLine = parseInt(m[2]);
+			}
+			continue;
+		}
+		if (line.startsWith("+")) {
+			lines.push({ lineNo: String(newLine++), prefix: "+", content: line.slice(1), color: theme.success });
+		} else if (line.startsWith("-")) {
+			lines.push({ lineNo: String(oldLine++), prefix: "-", content: line.slice(1), color: "#ef4444" });
+		} else {
+			lines.push({
+				lineNo: String(newLine),
+				prefix: " ",
+				content: line.startsWith(" ") ? line.slice(1) : line,
+				color: theme.textDim,
+			});
+			oldLine++;
+			newLine++;
+		}
+	}
+	return lines;
+}
+
+function DiffView({ diff }: { diff: string }) {
+	const lines = parseDiffLines(diff);
+	const pad = lines.reduce((max, l) => Math.max(max, l.lineNo.length), 0);
+
+	return (
+		<Box flexDirection="column">
+			{lines.map((l, i) => (
+				<Text key={i} color={l.color}>
+					{`${l.lineNo.padStart(pad)}${l.prefix}  ${l.content}`}
+				</Text>
+			))}
+		</Box>
+	);
+}
+
 function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
 
@@ -365,6 +416,7 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 				<Text color={theme.textMuted}>{tool.input}</Text>
 			</Box>
 			{output ? <Text color={theme.textMuted}>{output}</Text> : null}
+			{tool.diff ? <DiffView diff={tool.diff} /> : null}
 		</Box>
 	);
 }
@@ -373,9 +425,10 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 	if (!tool.output) return null;
 	switch (tool.name) {
 		case "read_file":
+			return null;
 		case "write_file":
 		case "edit_file":
-			return null;
+			return tool.output || null;
 		case "glob": {
 			const files = tool.output.split("\n").filter(Boolean);
 			return `${files.length} file${files.length !== 1 ? "s" : ""} found`;
@@ -602,6 +655,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 							draft.toolCalls[idx] = {
 								...draft.toolCalls[idx],
 								output: event.result.content,
+								diff: event.result.meta?.diff,
 							};
 						}
 						shouldSync = true;

@@ -16,7 +16,7 @@ core/
 │   ├── read.ts           # File reading
 │   ├── write.ts          # File writing
 │   ├── edit.ts           # File editing (find-and-replace)
-│   ├── diff.ts           # Unified diff generation (unifiedDiff utility)
+│   ├── diff.ts           # Unified diff generation via git diff
 │   ├── grep.ts           # Text search (ripgrep-style)
 │   └── glob.ts           # File pattern matching
 ├── sessions/             # Session persistence
@@ -48,8 +48,8 @@ The `run()` async generator in `agent.ts`:
 6. Yield `AgentEvent`s for the UI to consume
 7. Repeat until assistant responds without tool calls
 
-Features: self-reflection every 3 rounds, loop detection (repeated tool calls), automatic retries with exponential
-backoff, grounding nudges after side-effect tools.
+Features: self-reflection every 12 rounds, loop detection (repeated tool calls), automatic retries with exponential
+backoff.
 
 ### AgentEvent Types
 
@@ -77,7 +77,8 @@ interface Tool {
 }
 ```
 
-Built-in tools (`defaultTools`): `bash`, `read_file`, `write_file`, `edit_file`, `grep`, `glob`
+Built-in tools (`defaultTools`): `bash` (Run), `read_file` (Read), `write_file` (Write), `edit_file` (Edit), `grep`
+(Grep), `glob` (Search)
 
 ### Context Management
 
@@ -104,5 +105,7 @@ Built-in tools (`defaultTools`): `bash`, `read_file`, `write_file`, `edit_file`,
 - Tools use `defineTool()` helper for consistent structure
 - Tools have a `readonly` flag for parallel execution optimization
 - Use `ToolResult` with `isError` flag for error reporting
+- `ToolResult.meta.diff` carries unified diff output from `write_file` and `edit_file` for UI rendering
+- `diff.ts` uses `git diff --no-index --no-ext-diff` on temp files to bypass user-configured external diff tools
 - Agent loop is an async generator for streaming updates
 - Context trimming uses heuristic token estimation (~4 chars/token)

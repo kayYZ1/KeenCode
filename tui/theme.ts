@@ -4,45 +4,93 @@
  * Uses 24-bit hex colors for a modern, expressive look.
  * All UI components should reference these values instead of
  * hardcoding color names or hex codes.
+ *
+ * Users can override any color by creating ~/.keencode/theme.json
+ * with a partial set of keys from this object.
  */
-export const theme = {
+
+import { join } from "@std/path/join";
+import { keencodeDir } from "@/core/paths.ts";
+
+export interface Theme {
 	// Brand / accent
-	brand: "#6c63ff", // vibrant indigo — primary brand identity
-	accent: "#22d3ee", // vivid cyan — highlights, selections, active states
-	accentSoft: "#67e8f9", // softer cyan — secondary accent
+	brand: string;
+	accent: string;
 
 	// Semantic
-	success: "#34d399", // emerald green — success states, user prompts, cost
-	warning: "#fbbf24", // warm amber — warnings, branch name, permissions
-	error: "#f87171", // coral red — errors, deletions, high token usage
-	info: "#818cf8", // soft indigo — informational, headings
+	success: string;
+	warning: string;
+	error: string;
+	info: string;
 
 	// Text
-	text: "#e2e8f0", // light slate — primary text on dark backgrounds
-	textMuted: "#94a3b8", // slate gray — secondary text, descriptions, placeholders
-	textDim: "#64748b", // dim slate — disabled, line numbers, hints
-
-	// Diff
-	diffAdd: "#4ade80", // bright green
-	diffRemove: "#fb7185", // rose pink
-	diffContext: "#64748b", // dim slate
+	text: string;
+	textMuted: string;
+	textDim: string;
 
 	// UI chrome
-	border: "#a78bfa", // soft violet — borders, frames
-	borderLabel: "#c4b5fd", // light violet — border labels
-	tokenLow: "#34d399", // emerald — token bar < 50%
-	tokenMid: "#fbbf24", // amber — token bar 50-80%
-	tokenHigh: "#f87171", // coral — token bar > 80%
+	border: string;
+	borderLabel: string;
 
 	// Markdown
-	heading1: "#c084fc", // purple — h1
-	heading2: "#818cf8", // indigo — h2
-	heading3: "#22d3ee", // cyan — h3
-	codeInline: "#94a3b8", // slate — inline code
-	codeBlock: "#94a3b8", // slate — code blocks
-	link: "#22d3ee", // cyan — links
-	linkUrl: "#64748b", // dim — link URLs
-	blockquote: "#64748b", // dim — blockquote bar
-	listBullet: "#64748b", // dim — list markers
-	hr: "#64748b", // dim — horizontal rules
-} as const;
+	heading1: string;
+	heading2: string;
+	heading3: string;
+	codeInline: string;
+	codeBlock: string;
+	link: string;
+	linkUrl: string;
+	blockquote: string;
+	listBullet: string;
+	hr: string;
+}
+
+const defaults: Theme = {
+	// Brand / accent
+	brand: "#6c63ff",
+	accent: "#22d3ee",
+
+	// Semantic
+	success: "#34d399",
+	warning: "#fbbf24",
+	error: "#f87171",
+	info: "#818cf8",
+
+	// Text
+	text: "#e2e8f0",
+	textMuted: "#94a3b8",
+	textDim: "#64748b",
+
+	// UI chrome
+	border: "#a78bfa",
+	borderLabel: "#c4b5fd",
+
+	// Markdown
+	heading1: "#c084fc",
+	heading2: "#818cf8",
+	heading3: "#22d3ee",
+	codeInline: "#94a3b8",
+	codeBlock: "#94a3b8",
+	link: "#22d3ee",
+	linkUrl: "#64748b",
+	blockquote: "#64748b",
+	listBullet: "#64748b",
+	hr: "#64748b",
+};
+
+function loadUserTheme(): Partial<Theme> {
+	const path = join(keencodeDir(), "theme.json");
+	try {
+		const raw = Deno.readTextFileSync(path);
+		return JSON.parse(raw) as Partial<Theme>;
+	} catch {
+		try {
+			const dir = keencodeDir();
+			Deno.mkdirSync(dir, { recursive: true });
+			Deno.writeTextFileSync(path, JSON.stringify(defaults, null, "\t") + "\n");
+		} catch { /* ignore — read-only fs or similar */ }
+		return {};
+	}
+}
+
+export const theme: Theme = { ...defaults, ...loadUserTheme() };

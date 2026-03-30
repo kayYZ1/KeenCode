@@ -9,6 +9,7 @@ agent/
 ├── index.ts              # Application entry point (imports app.tsx)
 ├── app.tsx               # Main application: config, UI components, agent loop integration
 ├── config.ts             # Default provider config (baseURL, model)
+├── system-prompt.md      # System prompt for the LLM agent
 └── hooks/
     └── project-files.ts  # useProjectFiles hook (git ls-files / directory walk for file indexing)
 ```
@@ -54,8 +55,10 @@ Built with the TUI framework, all defined in `app.tsx`:
 - `TokenBar` - Color-coded progress bar for context window usage (200k)
 - `PermissionDialog` - Tool permission approval dialog (once/chat/session/deny)
 - `MessageView` - Renders user and agent messages with markdown
-- `ToolCallView` - Displays tool call name, input summary, output, and diffs
-- `DiffView` - Renders unified diffs with syntax coloring
+- `ToolCallView` - Displays tool calls with user-friendly names (Read, Write, Edit, Search, Grep, Run), input summary,
+  output, and inline diffs for write/edit operations
+- `DiffView` - Renders unified diffs with line numbers, colored `+`/`-` indicators (green added, red removed)
+- `parseDiffLines()` - Parses raw unified diff output into structured lines with line numbers from `@@` hunk headers
 - Reactive state via `useSignal`
 - Vim-style input via `useTextInput`
 - Command palette (new chat, threads, quit) via `useCommandPalette`
@@ -75,7 +78,6 @@ Built with the TUI framework, all defined in `app.tsx`:
 - `@/api` - LLM provider (`CompletionsProvider`)
 - `@/core` - Agent loop (`run`) and tools (`defaultTools`, `createToolRegistry`)
 - `@/tui` - Terminal UI framework (components, hooks, input manager)
-- `@std/dotenv` - Environment variable loading
 
 ## Running
 

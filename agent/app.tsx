@@ -13,32 +13,22 @@ import {
 	TextInput,
 	WelcomeScreen,
 } from "@/tui/render/components.tsx";
-import {
-	type DisplayDiffLine,
-	formatDiffForDisplay,
-	shouldShowDiff,
-	summarizeDiff,
-} from "@/tui/core/primitives/parse-diff.ts";
 import { getHookKey, hasCleanup, setCleanup, useSignal } from "@/tui/render/hooks/signals.ts";
 import { useTextInput, type VimMode } from "@/tui/render/hooks/text-input.ts";
 import { type CommandPaletteItem, useCommandPalette } from "@/tui/render/hooks/command-palette.ts";
 import { inputManager } from "@/tui/core/input.ts";
 import { useProjectFiles } from "./hooks/project-files.ts";
 import { config } from "./config.ts";
+import { loadApiKey } from "./auth.ts";
 import { theme } from "@/tui/theme.ts";
 import { VERSION } from "@/version.ts";
-import "@std/dotenv/load";
 import SYSTEM_PROMPT from "./system-prompt.md" with { type: "text" };
 
 // ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 
-const apiKey = Deno.env.get("LLM_API_KEY");
-if (!apiKey) {
-	console.error("Missing API key. Set it with: export LLM_API_KEY=<your-openrouter-key>");
-	Deno.exit(1);
-}
+const apiKey = await loadApiKey();
 
 const branchName = await new Deno.Command("git", {
 	args: ["branch", "--show-current"],
@@ -305,10 +295,8 @@ function formatStatus(status: AgentStatus): string {
 // Components
 // ---------------------------------------------------------------------------
 
-const CONTEXT_WINDOW = 200_000;
+const CONTEXT_WINDOW = config.maxTokens;
 const TOKEN_BAR_WIDTH = 20;
-
-const CONTEXT_WINDOW_LABEL = "200k";
 
 function formatTokens(n: number): string {
 	if (n >= 1_000_000) return (n / 1_000_000).toFixed(1) + "M";
@@ -320,7 +308,7 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 	const ratio = Math.min(tokenCount / CONTEXT_WINDOW, 1);
 	const filled = Math.round(ratio * TOKEN_BAR_WIDTH);
 	const empty = TOKEN_BAR_WIDTH - filled;
-	const color = ratio >= 0.8 ? theme.tokenHigh : ratio >= 0.5 ? theme.tokenMid : theme.tokenLow;
+	const color = ratio >= 0.8 ? theme.error : ratio >= 0.5 ? theme.warning : theme.success;
 
 	return (
 		<Box flexDirection="row" gap={1}>
@@ -330,7 +318,7 @@ function TokenBar({ tokenCount }: { tokenCount: number }) {
 				{"░".repeat(empty)}
 			</Text>
 			<Text color={color}>{formatTokens(tokenCount)}</Text>
-			<Text color={theme.textDim}>/ {CONTEXT_WINDOW_LABEL}</Text>
+			<Text color={theme.textDim}>/ {formatTokens(CONTEXT_WINDOW)}</Text>
 		</Box>
 	);
 }
@@ -355,46 +343,80 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 	);
 }
 
-const DIFF_INDICATOR: Record<DisplayDiffLine["type"], { symbol: string; color: string }> = {
-	add: { symbol: "+", color: theme.diffAdd },
-	remove: { symbol: "-", color: theme.diffRemove },
-	context: { symbol: " ", color: theme.diffContext },
+const TOOL_DISPLAY_NAMES: Record<string, string> = {
+	read_file: "read",
+	write_file: "write",
+	edit_file: "edit",
+	glob: "search",
+	grep: "grep",
+	bash: "run",
 };
 
+function getToolDisplayName(name: string): string {
+	return TOOL_DISPLAY_NAMES[name] ?? name;
+}
+
+const DIFF_HEADER_PREFIXES = ["diff ", "index ", "--- ", "+++ "];
+
+function parseDiffLines(diff: string) {
+	const lines: { lineNo: string; prefix: string; content: string; color: string }[] = [];
+	let oldLine = 0;
+	let newLine = 0;
+
+	for (const line of diff.split("\n")) {
+		if (DIFF_HEADER_PREFIXES.some((p) => line.startsWith(p))) continue;
+		if (line.startsWith("@@")) {
+			const m = line.match(/@@ -(\d+)(?:,\d+)? \+(\d+)/);
+			if (m) {
+				oldLine = parseInt(m[1]);
+				newLine = parseInt(m[2]);
+			}
+			continue;
+		}
+		if (line.startsWith("+")) {
+			lines.push({ lineNo: String(newLine++), prefix: "+", content: line.slice(1), color: theme.success });
+		} else if (line.startsWith("-")) {
+			lines.push({ lineNo: String(oldLine++), prefix: "-", content: line.slice(1), color: "#ef4444" });
+		} else {
+			lines.push({
+				lineNo: String(newLine),
+				prefix: " ",
+				content: line.startsWith(" ") ? line.slice(1) : line,
+				color: theme.textDim,
+			});
+			oldLine++;
+			newLine++;
+		}
+	}
+	return lines;
+}
+
 function DiffView({ diff }: { diff: string }) {
-	const lines = formatDiffForDisplay(diff);
-	const maxNum = lines.reduce((m, l) => Math.max(m, l.newNum ?? 0, l.oldNum ?? 0), 0);
-	const numWidth = String(maxNum).length;
+	const lines = parseDiffLines(diff);
+	const pad = lines.reduce((max, l) => Math.max(max, l.lineNo.length), 0);
 
 	return (
 		<Box flexDirection="column">
-			{lines.map((line, i) => {
-				const { symbol, color } = DIFF_INDICATOR[line.type];
-				const num = line.newNum ?? line.oldNum;
-				const lineNum = num !== null ? String(num).padStart(numWidth) : " ".repeat(numWidth);
-				return (
-					<Text key={i} color={color}>
-						{`  ${lineNum} ${symbol} ${line.code}`}
-					</Text>
-				);
-			})}
+			{lines.map((l, i) => (
+				<Text key={i} color={l.color}>
+					{`${l.lineNo.padStart(pad)}${l.prefix}  ${l.content}`}
+				</Text>
+			))}
 		</Box>
 	);
 }
 
 function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
-	const showDiff = tool.diff && shouldShowDiff(tool.diff);
-	const diffSummary = tool.diff && !showDiff ? summarizeDiff(tool.diff) : null;
 
 	return (
 		<Box flexDirection="column">
 			<Box flexDirection="row" gap={1}>
-				<Text color={theme.warning} bold>{tool.name}</Text>
+				<Text color={theme.warning} bold>{getToolDisplayName(tool.name)}</Text>
 				<Text color={theme.textMuted}>{tool.input}</Text>
-				{diffSummary && <Text color={theme.textMuted}>({diffSummary})</Text>}
 			</Box>
-			{showDiff ? <DiffView diff={tool.diff!} /> : output ? <Text color={theme.textMuted}>{output}</Text> : null}
+			{output ? <Text color={theme.textMuted}>{output}</Text> : null}
+			{tool.diff ? <DiffView diff={tool.diff} /> : null}
 		</Box>
 	);
 }
@@ -403,9 +425,10 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 	if (!tool.output) return null;
 	switch (tool.name) {
 		case "read_file":
+			return null;
 		case "write_file":
 		case "edit_file":
-			return null;
+			return tool.output || null;
 		case "glob": {
 			const files = tool.output.split("\n").filter(Boolean);
 			return `${files.length} file${files.length !== 1 ? "s" : ""} found`;
@@ -471,7 +494,8 @@ function entriesToUIMessages(entries: Entry[]): UIMessage[] {
 
 	for (const entry of entries) {
 		if (entry.type === "message" && entry.role === "user" && typeof entry.content === "string") {
-			messages.push({ role: "user", content: entry.content });
+			const displayContent = entry.content.replace(/\n\n<attached_context>[\s\S]*<\/attached_context>$/, "");
+			messages.push({ role: "user", content: displayContent });
 		} else if (entry.type === "message" && entry.role === "assistant") {
 			const toolCalls: UIToolCall[] = entry.toolCalls?.map((tc) => {
 				const uiTc = createUIToolCall(tc.function.name, tc.function.arguments);
@@ -589,8 +613,8 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			tools,
 			model: config.model,
 			systemPrompt: SYSTEM_PROMPT,
-			temperature: 0.6,
-			contextLimit: { maxTokens: 200_000, preserveRecentTurns: 4 },
+			temperature: config.temperature,
+			contextLimit: { maxTokens: config.maxTokens, preserveRecentTurns: config.preserveRecentTurns },
 			signal: ac.signal,
 			onPermissionRequest,
 		});

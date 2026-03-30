@@ -42,11 +42,16 @@ class InputManager {
 		const sequences = this.splitSequences(data);
 		for (const seq of sequences) {
 			const event = this.parseKey(seq);
+			let consumed = false;
 			for (const handler of this.globalHandlers) {
-				if (handler(event) === true) return;
+				if (handler(event) === true) {
+					consumed = true;
+					break;
+				}
 			}
+			if (consumed) continue;
 			for (const handler of this.handlers) {
-				if (handler(event) === true) return;
+				if (handler(event) === true) break;
 			}
 		}
 	};

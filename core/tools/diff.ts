@@ -1,43 +1,39 @@
-/** Generate a compact unified diff between two strings. */
-export function unifiedDiff(a: string, b: string, path: string): string {
-	const aLines = a.split("\n");
-	const bLines = b.split("\n");
+/**
+ * Generate a unified diff between two strings using `git diff --no-index --no-ext-diff`.
+ * Bypasses any user-configured external diff tools (e.g. tree-sitter diffing).
+ */
+export async function generateDiff(
+	oldText: string,
+	newText: string,
+): Promise<string | undefined> {
+	const tmpDir = await Deno.makeTempDir();
+	const oldPath = `${tmpDir}/old`;
+	const newPath = `${tmpDir}/new`;
 
-	// Find first and last differing lines
-	let start = 0;
-	while (start < aLines.length && start < bLines.length && aLines[start] === bLines[start]) {
-		start++;
-	}
+	try {
+		await Deno.writeTextFile(oldPath, oldText);
+		await Deno.writeTextFile(newPath, newText);
 
-	let aEnd = aLines.length - 1;
-	let bEnd = bLines.length - 1;
-	while (aEnd > start && bEnd > start && aLines[aEnd] === bLines[bEnd]) {
-		aEnd--;
-		bEnd--;
-	}
+		const result = await new Deno.Command("git", {
+			args: [
+				"diff",
+				"--no-index",
+				"--no-ext-diff",
+				"--no-color",
+				"-U3",
+				"--",
+				oldPath,
+				newPath,
+			],
+			stdout: "piped",
+			stderr: "null",
+		}).output();
 
-	const CONTEXT = 3;
-	const ctxStart = Math.max(0, start - CONTEXT);
-	const ctxAEnd = Math.min(aLines.length - 1, aEnd + CONTEXT);
-	const ctxBEnd = Math.min(bLines.length - 1, bEnd + CONTEXT);
-
-	const lines: string[] = [];
-	lines.push(`--- ${path}`);
-	lines.push(`+++ ${path}`);
-	lines.push(`@@ -${ctxStart + 1},${ctxAEnd - ctxStart + 1} +${ctxStart + 1},${ctxBEnd - ctxStart + 1} @@`);
-
-	for (let i = ctxStart; i < start; i++) {
-		lines.push(` ${aLines[i]}`);
+		const raw = new TextDecoder().decode(result.stdout).trim();
+		return raw || undefined;
+	} catch {
+		return undefined;
+	} finally {
+		await Deno.remove(tmpDir, { recursive: true }).catch(() => {});
 	}
-	for (let i = start; i <= aEnd; i++) {
-		lines.push(`-${aLines[i]}`);
-	}
-	for (let i = start; i <= bEnd; i++) {
-		lines.push(`+${bLines[i]}`);
-	}
-	for (let i = aEnd + 1; i <= ctxAEnd; i++) {
-		lines.push(` ${aLines[i]}`);
-	}
-
-	return lines.join("\n");
 }

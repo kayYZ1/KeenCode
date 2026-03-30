@@ -5,10 +5,8 @@
 		"fmt:check": "deno fmt --check",
 		"lint": "deno lint",
 		"test": "deno test --allow-read --allow-write --allow-env --allow-run",
-		"agent": "deno run --allow-all agent/index.ts",
-		"playground:agent": "deno run --allow-all tui/playground/agent.tsx",
+		"agent": "deno run --unstable-raw-imports --allow-all agent/index.ts",
 		"playground:command-palette": "deno run --allow-all tui/playground/command-palette.tsx",
-		"playground:diff": "deno run --allow-all tui/playground/diff.tsx",
 		"playground:layout": "deno run --allow-all tui/playground/layout.tsx",
 		"playground:markdown": "deno run --allow-all tui/playground/markdown.tsx",
 		"playground:scroll-area": "deno run --allow-all tui/playground/scroll-area.tsx",
@@ -31,7 +29,6 @@
 		"@/tui/render/jsx-runtime": "./tui/render/jsx-runtime.ts",
 		"@/tui/render/jsx-dev-runtime": "./tui/render/jsx-dev-runtime.ts",
 		"@std/assert": "jsr:@std/assert@^1",
-		"@std/dotenv": "jsr:@std/dotenv@^0.225",
 		"@std/path": "jsr:@std/path@^1"
 	},
 	"compilerOptions": {

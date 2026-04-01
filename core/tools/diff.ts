@@ -169,8 +169,10 @@ function buildHunks(
 	for (let i = 0; i < ops.length; i++) {
 		oldIdx[i] = oi;
 		newIdx[i] = ni;
-		if (ops[i] === EQUAL) { oi++; ni++; }
-		else if (ops[i] === DELETE) oi++;
+		if (ops[i] === EQUAL) {
+			oi++;
+			ni++;
+		} else if (ops[i] === DELETE) oi++;
 		else ni++;
 	}
 

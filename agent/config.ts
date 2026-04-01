@@ -11,5 +11,5 @@ export const config: KeenCodeConfig = {
 	model: "moonshotai/kimi-k2.5",
 	temperature: 0.6,
 	maxTokens: 200_000,
-	preserveRecentTurns: 4,
+	preserveRecentTurns: 6,
 };

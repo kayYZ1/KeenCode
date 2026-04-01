@@ -399,7 +399,7 @@ function DiffView({ diff }: { diff: string }) {
 		<Box flexDirection="column">
 			{lines.map((l, i) => (
 				<Text key={i} color={l.color}>
-					{`${l.lineNo.padStart(pad)}${l.prefix}  ${l.content}`}
+					{`${l.lineNo.padStart(pad)} ${l.prefix}  ${l.content}`}
 				</Text>
 			))}
 		</Box>
@@ -596,7 +596,10 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		const draft = { text: "", toolCalls: [] as UIToolCall[], msgIndex: -1 };
 		const toolCallState = new Map<string, { name: string; args: string }>();
 
-		const syncDraft = () => {
+		let syncTimer: ReturnType<typeof setTimeout> | null = null;
+		let syncPending = false;
+
+		const doSync = () => {
 			const msgs = [...uiMessages.value];
 			const entry: UIMessage = { role: "agent", content: draft.text, toolCalls: [...draft.toolCalls] };
 			if (draft.msgIndex >= 0 && draft.msgIndex < msgs.length) {
@@ -606,6 +609,22 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				msgs.push(entry);
 			}
 			uiMessages.value = msgs;
+			syncPending = false;
+		};
+
+		const syncDraft = (force = false) => {
+			if (force) {
+				if (syncTimer) clearTimeout(syncTimer);
+				syncTimer = null;
+				doSync();
+				return;
+			}
+			if (syncPending) return;
+			syncPending = true;
+			syncTimer = setTimeout(() => {
+				syncTimer = null;
+				doSync();
+			}, 50);
 		};
 
 		const events = runAgent(messages, {
@@ -621,6 +640,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 
 		for await (const event of events) {
 			let shouldSync = false;
+			let shouldForce = false;
 
 			switch (event.type) {
 				case "text_delta": {
@@ -644,6 +664,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 					if (tc) {
 						draft.toolCalls.push(createUIToolCall(tc.name, tc.args));
 						shouldSync = true;
+						shouldForce = true;
 					}
 					break;
 				}
@@ -659,6 +680,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 							};
 						}
 						shouldSync = true;
+						shouldForce = true;
 					}
 					break;
 				}
@@ -716,8 +738,15 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				}
 			}
 
-			if (shouldSync) syncDraft();
+			if (shouldSync) syncDraft(shouldForce);
+			shouldSync = false;
+			shouldForce = false;
 			if (ac.signal.aborted) break;
+		}
+
+		if (syncTimer) {
+			clearTimeout(syncTimer);
+			doSync();
 		}
 
 		isLoading.value = false;
@@ -735,6 +764,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		maxResults: 20,
 		onSelect: (item) => {
 			if (isLoading.value) return;
+			session.value.flush();
 			SessionManager.open(item.id).then((sm) => {
 				session.value = sm;
 				uiMessages.value = entriesToUIMessages(sm.getEntries());
@@ -773,6 +803,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		mode,
 		onSelect: (item) => {
 			if (item.id === "new-chat") {
+				session.value.flush();
 				uiMessages.value = [];
 				tokenCount.value = 0;
 				totalCost.value = 0;

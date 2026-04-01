@@ -1,4 +1,17 @@
-import { bgRgb, fgRgb } from "@/tui/core/ansi.ts";
+import {
+	bgRgb,
+	BOLD,
+	BOLD_OFF,
+	fgRgb,
+	ITALIC,
+	ITALIC_OFF,
+	RESET_BG,
+	RESET_FG,
+	STRIKETHROUGH,
+	STRIKETHROUGH_OFF,
+	UNDERLINE,
+	UNDERLINE_OFF,
+} from "@/tui/core/ansi.ts";
 
 const BASIC_COLORS: Record<string, string> = {
 	black: "\x1b[30m",
@@ -94,4 +107,35 @@ export function toBgAnsi(color: string): string | null {
 	}
 
 	return null;
+}
+
+export function applyAnsi(
+	text: string,
+	options: {
+		fg?: string;
+		bg?: string;
+		bold?: boolean;
+		italic?: boolean;
+		underline?: boolean;
+		strikethrough?: boolean;
+	},
+): string {
+	let result = text;
+
+	if (options.bg) {
+		const bg = toBgAnsi(options.bg);
+		if (bg) result = `${bg}${result}${RESET_BG}`;
+	}
+
+	if (options.fg) {
+		const ansi = toAnsi(options.fg);
+		if (ansi) result = `${ansi}${result}${RESET_FG}`;
+	}
+
+	if (options.bold) result = `${BOLD}${result}${BOLD_OFF}`;
+	if (options.italic) result = `${ITALIC}${result}${ITALIC_OFF}`;
+	if (options.underline) result = `${UNDERLINE}${result}${UNDERLINE_OFF}`;
+	if (options.strikethrough) result = `${STRIKETHROUGH}${result}${STRIKETHROUGH_OFF}`;
+
+	return result;
 }

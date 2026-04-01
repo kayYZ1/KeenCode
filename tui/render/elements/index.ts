@@ -18,27 +18,17 @@ interface ElementDefinition {
 	hasChildren: boolean;
 }
 
-const elements = new Map<string, ElementDefinition>();
-
-/** Register a new element type */
-export function registerElement(
-	type: string,
-	definition: {
-		render: ElementHandler<any>;
-		layout: LayoutHandler<any>;
-		hasChildren?: boolean;
-	},
-): void {
-	elements.set(type, {
-		render: definition.render,
-		layout: definition.layout,
-		hasChildren: definition.hasChildren ?? true,
-	});
-}
+const elements: Record<string, ElementDefinition> = {
+	[ElementType.BOX]: { render: BoxElement, layout: BoxLayout, hasChildren: true },
+	[ElementType.TEXT]: { render: TextElement, layout: TextLayout, hasChildren: false },
+	[ElementType.TEXT_INPUT]: { render: TextInputElement, layout: TextInputLayout, hasChildren: false },
+	[ElementType.SPINNER]: { render: SpinnerElement, layout: SpinnerLayout, hasChildren: false },
+	[ElementType.SCROLL_AREA]: { render: ScrollAreaElement, layout: ScrollAreaLayout, hasChildren: true },
+};
 
 /** Get element definition by type */
 export function getElement(type: string): ElementDefinition {
-	const element = elements.get(type);
+	const element = elements[type];
 	if (!element) {
 		throw new Error(`No element registered for type: ${type}`);
 	}
@@ -47,38 +37,7 @@ export function getElement(type: string): ElementDefinition {
 
 /** Check if element type is registered */
 export function hasElement(type: string): boolean {
-	return elements.has(type);
+	return type in elements;
 }
-
-// Register built-in elements
-registerElement(ElementType.BOX, {
-	render: BoxElement,
-	layout: BoxLayout,
-	hasChildren: true,
-});
-
-registerElement(ElementType.TEXT, {
-	render: TextElement,
-	layout: TextLayout,
-	hasChildren: false,
-});
-
-registerElement(ElementType.TEXT_INPUT, {
-	render: TextInputElement,
-	layout: TextInputLayout,
-	hasChildren: false,
-});
-
-registerElement(ElementType.SPINNER, {
-	render: SpinnerElement,
-	layout: SpinnerLayout,
-	hasChildren: false,
-});
-
-registerElement(ElementType.SCROLL_AREA, {
-	render: ScrollAreaElement,
-	layout: ScrollAreaLayout,
-	hasChildren: true,
-});
 
 export { BoxElement, ScrollAreaElement, SpinnerElement, TextElement, TextInputElement };

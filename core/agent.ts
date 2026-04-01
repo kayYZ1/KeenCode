@@ -58,7 +58,7 @@ export async function* run(
 	const maxRounds = config.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS;
 	const toolDefs = getDefinitions(config.tools);
 
-	const context: Message[] = [
+	let context: Message[] = [
 		{ role: "system", content: config.systemPrompt },
 		...messages,
 	];
@@ -162,6 +162,7 @@ export async function* run(
 		const callSignature = toolCalls.map((tc) => `${tc.function.name}:${tc.function.arguments}`).join("|");
 		const repeated = recentCallSignatures.filter((s) => s === callSignature).length;
 		recentCallSignatures.push(callSignature);
+		if (recentCallSignatures.length > 10) recentCallSignatures.shift();
 
 		if (repeated >= 2) {
 			context.push({
@@ -180,13 +181,13 @@ export async function* run(
 
 		if (readonlyCalls.length > 0) {
 			const results = await Promise.all(
-				readonlyCalls.map((tc) => executeTool(tc, config.tools, config.onPermissionRequest)),
+				readonlyCalls.map((tc) => executeTool(tc, config.tools, config.onPermissionRequest, config.signal)),
 			);
 			toolResults.push(...results);
 		}
 
 		for (const tc of sideEffectCalls) {
-			toolResults.push(await executeTool(tc, config.tools, config.onPermissionRequest));
+			toolResults.push(await executeTool(tc, config.tools, config.onPermissionRequest, config.signal));
 		}
 
 		// Emit results in original tool call order and collect tool result messages
@@ -202,6 +203,10 @@ export async function* run(
 			};
 			context.push(toolMsg);
 			toolResultMessages.push(toolMsg);
+		}
+
+		if (config.contextLimit) {
+			context = trimContext(context, config.contextLimit);
 		}
 
 		yield { type: "turn_complete", assistantMessage, toolResults: toolResultMessages };
@@ -257,7 +262,12 @@ async function executeTool(
 	tc: ToolCall,
 	tools: ToolRegistry,
 	onPermissionRequest?: PermissionRequestFn,
+	signal?: AbortSignal,
 ): Promise<{ tc: ToolCall; result: ToolResult }> {
+	if (signal?.aborted) {
+		return { tc, result: { content: "Aborted.", isError: true } };
+	}
+
 	const tool = tools.get(tc.function.name);
 	if (!tool) {
 		return { tc, result: enrichError(tc.function.name, `Unknown tool: ${tc.function.name}`, "unknown_tool") };
@@ -273,6 +283,9 @@ async function executeTool(
 	sanitizeToolArgs(tc.function.name, parsedArgs);
 
 	if (tool.requiresPermission && onPermissionRequest) {
+		if (signal?.aborted) {
+			return { tc, result: { content: "Aborted.", isError: true } };
+		}
 		const decision = await onPermissionRequest(tc.function.name, parsedArgs);
 		if (decision === "deny") {
 			return {

@@ -70,7 +70,7 @@ export const editFileTool = defineTool({
 			await Deno.writeTextFile(path, updated);
 
 			const replaced = replace_all ? `${count} occurrence${count > 1 ? "s" : ""}` : "1 occurrence";
-			const diff = await generateDiff(original, updated);
+			const diff = generateDiff(original, updated);
 			return { content: `Replaced ${replaced} in ${path}`, meta: { diff } };
 		} catch (err) {
 			return {

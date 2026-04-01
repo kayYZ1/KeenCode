@@ -1,5 +1,6 @@
 import { RESET } from "@/tui/core/ansi.ts";
 import { toAnsi } from "@/tui/core/primitives/color.ts";
+import { findMentions, formatLineWithMentions } from "@/tui/core/primitives/mentions.ts";
 import { splitTextWithOffsets, wrapText, wrapTextWithOffsets } from "@/tui/core/primitives/wrap-text.ts";
 import type { ElementHandler, Position, TextInputInstance } from "../types/index.ts";
 import type { LayoutHandler } from "./index.ts";
@@ -36,57 +37,6 @@ export function getPendingCursor(): CursorInfo | null {
 
 export function clearPendingCursor() {
 	pendingCursor = null;
-}
-
-interface MentionRange {
-	start: number;
-	end: number;
-}
-
-const MENTION_RE = /(^|(?<=\s))@[^\s]+/g;
-
-function findMentions(text: string): MentionRange[] {
-	const ranges: MentionRange[] = [];
-	for (const match of text.matchAll(MENTION_RE)) {
-		ranges.push({ start: match.index!, end: match.index! + match[0].length });
-	}
-	return ranges;
-}
-
-function formatLineWithMentions(
-	line: string,
-	lineStart: number,
-	width: number,
-	mentions: MentionRange[],
-	defaultAnsi: string | null,
-	mentionAnsi: string,
-): string {
-	const padded = line.slice(0, width).padEnd(width, " ");
-	if (mentions.length === 0) {
-		if (defaultAnsi) return `${defaultAnsi}${padded}${RESET}`;
-		return padded;
-	}
-
-	let result = "";
-	let inMention = false;
-
-	for (let i = 0; i < padded.length; i++) {
-		const absIdx = lineStart + i;
-		const isMention = i < line.length && mentions.some((m) => absIdx >= m.start && absIdx < m.end);
-
-		if (isMention !== inMention) {
-			if (isMention) {
-				result += `${mentionAnsi}`;
-			} else {
-				result += `${RESET}${defaultAnsi ?? ""}`;
-			}
-			inMention = isMention;
-		}
-		result += padded[i];
-	}
-
-	result += RESET;
-	return result;
 }
 
 export function calculateCursorPosition(

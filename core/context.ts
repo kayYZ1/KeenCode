@@ -4,8 +4,9 @@ import type { Message } from "@/api/types.ts";
 // Token estimation (heuristic: ~4 chars per token)
 // ---------------------------------------------------------------------------
 
-const CHARS_PER_TOKEN = 4;
-const MESSAGE_OVERHEAD = 4; // role, separators
+const CHARS_PER_TOKEN = 3;
+const MESSAGE_OVERHEAD = 8; // role, separators, serialization overhead
+const COMPLETION_HEADROOM = 16_000; // reserve tokens for the model's reply
 
 export function estimateTokens(text: string): number {
 	return Math.ceil(text.length / CHARS_PER_TOKEN);
@@ -77,6 +78,10 @@ function groupIntoTurns(messages: Message[]): Turn[] {
 		}
 	}
 
+	// Make the first user message non-droppable to preserve the original goal
+	const firstUserTurn = turns.find((t) => t.messages[0]?.role === "user");
+	if (firstUserTurn) firstUserTurn.droppable = false;
+
 	return turns;
 }
 
@@ -84,7 +89,7 @@ function groupIntoTurns(messages: Message[]): Turn[] {
 // Tool result summarization
 // ---------------------------------------------------------------------------
 
-const SUMMARY_THRESHOLD = 500; // only summarize content longer than this (chars)
+const SUMMARY_THRESHOLD = 300; // only summarize content longer than this (chars)
 
 function summarizeToolContent(content: string, toolName: string): string {
 	const lines = content.split("\n");
@@ -92,11 +97,19 @@ function summarizeToolContent(content: string, toolName: string): string {
 	return `${preview}\n... [${toolName}: ${lines.length} lines, ${content.length} chars — trimmed to save context]`;
 }
 
+function summarizeUserContent(content: string): string {
+	const firstLine = content.split("\n")[0];
+	return `${firstLine}\n... [user message: ${content.length} chars — trimmed to save context]`;
+}
+
 function summarizeTurn(turn: Turn): Turn {
 	let changed = false;
 	const messages = turn.messages.map((msg) => {
-		if (msg.role === "tool" && msg.content && msg.content.length > SUMMARY_THRESHOLD) {
+		if ((msg.role === "tool" || msg.role === "user") && msg.content && msg.content.length > SUMMARY_THRESHOLD) {
 			changed = true;
+			if (msg.role === "user") {
+				return { ...msg, content: summarizeUserContent(msg.content) };
+			}
 			return { ...msg, content: summarizeToolContent(msg.content, msg.name ?? "tool") };
 		}
 		return msg;
@@ -123,7 +136,7 @@ export interface TrimOptions {
 }
 
 const DEFAULT_MAX_TOKENS = 100_000;
-const DEFAULT_PRESERVE_RECENT_TURNS = 4;
+const DEFAULT_PRESERVE_RECENT_TURNS = 6;
 
 /**
  * Trim a message array to fit within a token budget.
@@ -134,13 +147,13 @@ const DEFAULT_PRESERVE_RECENT_TURNS = 4;
  * 3. Drop oldest droppable turns until under budget
  */
 export function trimContext(messages: Message[], options: TrimOptions = {}): Message[] {
-	const maxTokens = options.maxTokens ?? DEFAULT_MAX_TOKENS;
+	const budget = (options.maxTokens ?? DEFAULT_MAX_TOKENS) - COMPLETION_HEADROOM;
 	const preserveRecent = options.preserveRecentTurns ?? DEFAULT_PRESERVE_RECENT_TURNS;
 
 	const turns = groupIntoTurns(messages);
 	let totalTokens = turns.reduce((sum, t) => sum + t.tokens, 0);
 
-	if (totalTokens <= maxTokens) return messages;
+	if (totalTokens <= budget) return messages;
 
 	// Boundary: turns at or after this index are "recent" and kept intact
 	const recentStart = Math.max(0, turns.length - preserveRecent);
@@ -153,13 +166,13 @@ export function trimContext(messages: Message[], options: TrimOptions = {}): Mes
 		turns[i] = summarized;
 	}
 
-	if (totalTokens <= maxTokens) {
+	if (totalTokens <= budget) {
 		return turns.flatMap((t) => t.messages);
 	}
 
 	// Phase 2: Drop oldest droppable turns
 	const dropIndices = new Set<number>();
-	for (let i = 0; i < recentStart && totalTokens > maxTokens; i++) {
+	for (let i = 0; i < recentStart && totalTokens > budget; i++) {
 		if (turns[i].droppable) {
 			totalTokens -= turns[i].tokens;
 			dropIndices.add(i);

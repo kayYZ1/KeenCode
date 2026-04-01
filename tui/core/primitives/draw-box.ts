@@ -1,6 +1,5 @@
 import type { Position } from "@/tui/render/types/index.ts";
-import { RESET_BG, RESET_FG } from "@/tui/core/ansi.ts";
-import { toAnsi, toBgAnsi } from "./color.ts";
+import { applyAnsi } from "./color.ts";
 
 export type BorderStyle = "single" | "double" | "round" | "bold" | "dash" | "block";
 
@@ -43,17 +42,7 @@ export const drawBox = (
 
 	const wrap = (char?: string, overrideColor?: string) => {
 		if (!char) return "";
-		let result = char;
-		const c = overrideColor ?? color;
-		if (c) {
-			const ansi = toAnsi(c);
-			if (ansi) result = `${ansi}${result}${RESET_FG}`;
-		}
-		if (bgColor) {
-			const bg = toBgAnsi(bgColor);
-			if (bg) result = `${bg}${result}${RESET_BG}`;
-		}
-		return result;
+		return applyAnsi(char, { fg: overrideColor ?? color, bg: bgColor });
 	};
 
 	positions.push({ x, y, text: wrap(chars.tl) });

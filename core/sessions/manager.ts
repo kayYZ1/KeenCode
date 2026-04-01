@@ -228,13 +228,16 @@ export class SessionManager {
 				await Deno.writeTextFile(this.path, JSON.stringify(this.session.header) + "\n");
 				this.needsFlush = false;
 				this.headerDirty = false;
-			} else if (this.headerDirty) {
-				await this.flushHeader();
 			}
 			await Deno.writeTextFile(this.path, JSON.stringify(full) + "\n", { append: true });
 		}
 
 		this.session.entries.push(full);
 		return id;
+	}
+
+	/** Flush the header to disk. Call on session switch, quit, or idle. */
+	async flush(): Promise<void> {
+		await this.flushHeader();
 	}
 }

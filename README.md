@@ -182,15 +182,14 @@ deno task version:bump <patch|minor|major>  # Bump version
 Interactive demos for individual TUI components:
 
 ```bash
-deno task playground:agent            # Full agent UI demo
 deno task playground:command-palette  # Command palette
-deno task playground:diff            # Diff rendering
 deno task playground:layout           # Flexbox layout and borders
 deno task playground:markdown         # Markdown rendering
 deno task playground:scroll-area      # Scroll area
 deno task playground:spinner          # Spinner animations
 deno task playground:text-input       # Text input with vim mode
 deno task playground:text-styling     # Text styling
+deno task playground:welcome          # Welcome screen
 ```
 
 ## Releasing

@@ -52,7 +52,6 @@ Tag-based releases via GitHub Actions (`.github/workflows/release.yml`):
 
 ### Development (Playgrounds)
 
-- `deno task playground:agent` - Full agent demo (all features)
 - `deno task playground:command-palette` - Command palette demo
 - `deno task playground:layout` - Box layout and borders demo
 - `deno task playground:markdown` - Markdown rendering demo

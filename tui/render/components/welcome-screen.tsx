@@ -1,5 +1,6 @@
 import { Box, Text } from "../components.tsx";
 import { theme } from "@/tui/theme.ts";
+import { config } from "@/agent/config.ts";
 
 // Spaces use \u00A0 (non-breaking space) so wrapText doesn't collapse them
 const LOGO_LINES = [
@@ -24,6 +25,7 @@ export function WelcomeScreen({ version, subtitle = "Type a message to get start
 			</Box>
 			<Box flexDirection="column" alignItems="center" gap={1}>
 				<Text color={theme.textMuted}>v{version} — terminal coding agent</Text>
+				<Text color={theme.textDim}>{config.model.split("/").pop()}</Text>
 				<Text color={theme.textDim} italic>{subtitle}</Text>
 			</Box>
 		</Box>

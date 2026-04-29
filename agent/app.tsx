@@ -273,6 +273,7 @@ function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
 // ---------------------------------------------------------------------------
 
 type AgentStatus =
+	| { kind: "connecting" }
 	| { kind: "thinking" }
 	| { kind: "writing" }
 	| { kind: "running_tool"; toolName: string }
@@ -280,6 +281,8 @@ type AgentStatus =
 
 function formatStatus(status: AgentStatus): string {
 	switch (status.kind) {
+		case "connecting":
+			return "Connecting...";
 		case "thinking":
 			return "Thinking...";
 		case "writing":
@@ -643,6 +646,10 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			let shouldForce = false;
 
 			switch (event.type) {
+				case "connecting": {
+					status.value = { kind: "connecting" };
+					break;
+				}
 				case "text_delta": {
 					status.value = { kind: "writing" };
 					draft.text += event.content;

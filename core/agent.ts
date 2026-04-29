@@ -8,6 +8,7 @@ import { trimContext, type TrimOptions } from "@/core/context.ts";
 // ---------------------------------------------------------------------------
 
 export type AgentEvent =
+	| { type: "connecting" }
 	| { type: "text_delta"; content: string }
 	| { type: "tool_call_start"; id: string; name: string }
 	| { type: "tool_call_args_delta"; id: string; args: string }
@@ -45,7 +46,7 @@ const DEFAULT_MAX_TOOL_ROUNDS = 30;
 const REFLECTION_INTERVAL = 12;
 const MAX_API_RETRIES = 3;
 const RETRY_BASE_DELAY_MS = 1000;
-const STREAM_TIMEOUT_MS = 120_000; // 2 min max silence from LLM stream
+const STREAM_TIMEOUT_MS = 60_000; // 1 min max silence from LLM stream
 
 // ---------------------------------------------------------------------------
 // Agent loop (async generator)
@@ -95,6 +96,7 @@ export async function* run(
 			generationId = undefined;
 
 			try {
+				yield { type: "connecting" };
 				const stream = config.provider.stream({
 					model: config.model,
 					messages: effectiveContext,

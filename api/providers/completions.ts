@@ -7,6 +7,8 @@ export interface GenerationStats {
 	completionTokens: number | null;
 }
 
+const FETCH_TIMEOUT_MS = 90_000; // 90s max for the entire HTTP request (connection + headers)
+
 export class CompletionsProvider implements LLMProvider {
 	private readonly apiKey: string;
 	private readonly baseURL: string;
@@ -73,25 +75,41 @@ export class CompletionsProvider implements LLMProvider {
 
 	private async fetch(body: Record<string, unknown>, signal?: AbortSignal): Promise<Response> {
 		const url = `${this.baseURL}/chat/completions`;
-		const response = await fetch(url, {
-			method: "POST",
-			headers: {
-				"Content-Type": "application/json",
-				"Authorization": `Bearer ${this.apiKey}`,
-			},
-			body: JSON.stringify(body),
-			signal,
+
+		let timer: ReturnType<typeof setTimeout>;
+		const timeout = new Promise<never>((_, reject) => {
+			timer = setTimeout(
+				() => reject(new Error(`Fetch timeout: no response from API for ${FETCH_TIMEOUT_MS / 1000}s`)),
+				FETCH_TIMEOUT_MS,
+			);
 		});
 
-		if (!response.ok) {
-			const text = await response.text().catch(() => "");
-			throw new Error(
-				`API error ${response.status}: ${text || response.statusText}\n` +
-					`URL: ${url}\n` +
-					`Model: ${body.model}`,
-			);
-		}
+		try {
+			const response = await Promise.race([
+				fetch(url, {
+					method: "POST",
+					headers: {
+						"Content-Type": "application/json",
+						"Authorization": `Bearer ${this.apiKey}`,
+					},
+					body: JSON.stringify(body),
+					signal,
+				}),
+				timeout,
+			]);
 
-		return response;
+			if (!response.ok) {
+				const text = await response.text().catch(() => "");
+				throw new Error(
+					`API error ${response.status}: ${text || response.statusText}\n` +
+						`URL: ${url}\n` +
+						`Model: ${body.model}`,
+				);
+			}
+
+			return response;
+		} finally {
+			clearTimeout(timer!);
+		}
 	}
 }

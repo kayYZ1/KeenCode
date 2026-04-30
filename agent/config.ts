@@ -11,7 +11,7 @@ export interface KeenCodeConfig {
 
 const defaults: KeenCodeConfig = {
 	baseURL: "https://openrouter.ai/api/v1",
-	model: "z-ai/glm-5.1",
+	model: "moonshotai/kimi-k2.6",
 	temperature: 0.1,
 	maxTokens: 200_000,
 	preserveRecentTurns: 6,

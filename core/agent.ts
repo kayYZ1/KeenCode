@@ -8,7 +8,6 @@ import { trimContext, type TrimOptions } from "@/core/context.ts";
 // ---------------------------------------------------------------------------
 
 export type AgentEvent =
-	| { type: "connecting" }
 	| { type: "text_delta"; content: string }
 	| { type: "tool_call_start"; id: string; name: string }
 	| { type: "tool_call_args_delta"; id: string; args: string }
@@ -96,7 +95,6 @@ export async function* run(
 			generationId = undefined;
 
 			try {
-				yield { type: "connecting" };
 				const stream = config.provider.stream({
 					model: config.model,
 					messages: effectiveContext,

@@ -273,7 +273,6 @@ function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
 // ---------------------------------------------------------------------------
 
 type AgentStatus =
-	| { kind: "connecting" }
 	| { kind: "thinking" }
 	| { kind: "writing" }
 	| { kind: "running_tool"; toolName: string }
@@ -281,8 +280,6 @@ type AgentStatus =
 
 function formatStatus(status: AgentStatus): string {
 	switch (status.kind) {
-		case "connecting":
-			return "Connecting...";
 		case "thinking":
 			return "Thinking...";
 		case "writing":
@@ -559,6 +556,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 	const cancelKey = getHookKey("cancel-");
 	if (!hasCleanup(cancelKey)) {
 		let lastEsc = 0;
+		let escTimer: ReturnType<typeof setTimeout> | null = null;
 		const cleanup = inputManager.onKeyGlobal((event) => {
 			if (event.key !== "escape" || !isLoading.value) return false;
 			const now = Date.now();
@@ -566,9 +564,18 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				abortController.value?.abort();
 				lastEsc = 0;
 				escPrimed.value = false;
+				if (escTimer) {
+					clearTimeout(escTimer);
+					escTimer = null;
+				}
 			} else {
 				lastEsc = now;
 				escPrimed.value = true;
+				if (escTimer) clearTimeout(escTimer);
+				escTimer = setTimeout(() => {
+					escPrimed.value = false;
+					escTimer = null;
+				}, 1500);
 			}
 			return true;
 		});
@@ -646,10 +653,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			let shouldForce = false;
 
 			switch (event.type) {
-				case "connecting": {
-					status.value = { kind: "connecting" };
-					break;
-				}
 				case "text_delta": {
 					status.value = { kind: "writing" };
 					draft.text += event.content;

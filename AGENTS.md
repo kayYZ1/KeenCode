@@ -87,3 +87,49 @@ Each sub-package has its own AGENTS.md with package-specific details:
 - `core/AGENTS.md` - Agent loop, tools, context
 - `agent/AGENTS.md` - Application and UI
 - `tui/AGENTS.md` - Terminal UI framework
+
+## Git Conventions
+
+### Commit Messages
+
+Follow [Conventional Commits](https://www.conventionalcommits.org/) with these types:
+
+- `feat` - New feature or behavior
+- `fix` - Bug fix
+- `refactor` - Code restructuring without behavior change
+- `style` - Formatting only (e.g., `style: run deno fmt`)
+- `style(lint)` - Lint fixes
+- `docs` - Documentation or README updates
+- `chore` - Maintenance tasks (e.g., `chore: version bump`)
+- `test` - Adding or updating tests
+
+Use scopes when relevant: `feat(agent):`, `fix(tui):`, `refactor(core):`, `feat(diffs):`, `fix(command-palette):`, etc.
+
+Keep the subject line concise. Use the body for additional context when needed.
+
+### Branch Naming
+
+Use descriptive, kebab-case branch names with a category prefix:
+
+- `feat/description` — New features (e.g., `feat/agent-changes`, `feat/new-diffs`)
+- `fix/description` — Bug fixes (e.g., `fix/md-import-crash`, `fix/stream-abort-naming`)
+- `refactor/description` — Code restructuring (e.g., `refactor/signals-store`)
+- `docs/description` — Documentation updates (e.g., `docs/readme-update`)
+- `chore/description` — Maintenance tasks (e.g., `chore/version-bump`)
+
+Avoid vague names like `dev`, `temp`, or `wip-description` — use the category prefix instead.
+
+### Workflow
+
+1. Create a branch from `main` for your changes
+2. Make focused commits with clear messages
+3. Push the branch to the remote
+
+**Never push directly to `main`.** Always create a branch, even for small fixes.
+
+### Versioning & Releases
+
+- Use [Semantic Versioning](https://semver.org/): `MAJOR.MINOR.PATCH`
+- Tag releases with a `v` prefix: `git tag v0.5.0`
+- Version bumps are separate commits: `chore: version bump`
+- After bumping, commit to `main`, then tag and push tags to trigger the release CI

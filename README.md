@@ -31,7 +31,7 @@ sudo mv keencode /usr/local/bin/
 
 On first run, KeenCode will prompt you for an API key and save it to `~/.keencode/auth.json`.
 
-Model and provider settings are configured in `agent/config.ts`.
+Model and provider settings are configured in `~/.keencode/config.json`.
 
 ## Quick Start
 

@@ -131,7 +131,7 @@ export class SessionManager {
 	}
 
 	/** Delete old sessions beyond the `keep` most recent. Returns count deleted. */
-	static async cleanup(cwd: string, keep = 7): Promise<number> {
+	static async cleanup(cwd: string, keep = 10): Promise<number> {
 		const files = await SessionManager.list(cwd);
 		const toDelete = files.slice(keep);
 		await Promise.all(toDelete.map((f) => Deno.remove(f)));

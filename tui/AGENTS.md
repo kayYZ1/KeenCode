@@ -182,6 +182,16 @@ All exported from `render/hooks/index.ts`:
 - Text editing logic is centralized in `hooks/text-utils.ts` (exports `TextState` and operations like `insertChar`,
   `deleteBackward`, `moveCursor`, etc.)
 
+## Task Completion Checklist
+
+After concluding that a task is complete, always run these commands from the repo root:
+
+1. `deno task fmt` — auto-format all code
+2. `deno task lint` — check for lint errors
+3. `deno task test` — run the test suite
+
+If any command fails, fix the issues and re-run until all pass cleanly.
+
 ## Naming Conventions
 
 - **Element type strings**: camelCase (e.g., `"textInput"`, `"scrollArea"`)

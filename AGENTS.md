@@ -35,6 +35,17 @@ tui/      (leaf - no internal deps)
 - **Run tests**: `deno task test` (requires `--allow-read --allow-write --allow-env --allow-run`)
 - **Run agent**: `deno task agent` (requires `LLM_API_KEY` env var)
 
+## Task Completion Checklist
+
+After concluding that a task is complete, always run these commands in order:
+
+1. `deno task fmt` — auto-format all code
+2. `deno task lint` — check for lint errors
+3. `deno task test` — run the test suite
+
+If any command fails, fix the issues and re-run until all pass cleanly. Do not report the task as done until all three
+pass.
+
 ### Build & Version
 
 - **Build binary**: `deno task build` (compiles to `dist/keencode`)

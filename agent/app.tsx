@@ -410,7 +410,7 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
 
 	return (
-		<Box flexDirection="column">
+		<Box flexDirection="column" gap={1}>
 			<Box flexDirection="row" gap={1}>
 				<Text color={theme.warning} bold>{getToolDisplayName(tool.name)}</Text>
 				<Text color={theme.textMuted}>{tool.input}</Text>
@@ -497,6 +497,9 @@ function entriesToUIMessages(entries: Entry[]): UIMessage[] {
 			const displayContent = entry.content.replace(/\n\n<attached_context>[\s\S]*<\/attached_context>$/, "");
 			messages.push({ role: "user", content: displayContent });
 		} else if (entry.type === "message" && entry.role === "assistant") {
+			const hasContent = typeof entry.content === "string" && entry.content.trim();
+			const hasToolCalls = entry.toolCalls && entry.toolCalls.length > 0;
+			if (!hasContent && !hasToolCalls) continue;
 			const toolCalls: UIToolCall[] = entry.toolCalls?.map((tc) => {
 				const uiTc = createUIToolCall(tc.function.name, tc.function.arguments);
 				toolCallIdMap.set(tc.id, uiTc);

@@ -22,7 +22,6 @@ export interface ToolResult {
 export interface Tool {
 	definition: ToolDefinition;
 	readonly?: boolean;
-	requiresPermission?: boolean;
 	execute(input: unknown): Promise<ToolResult>;
 }
 
@@ -53,7 +52,6 @@ export function defineTool(opts: {
 	description: string;
 	parameters: JsonSchema;
 	readonly?: boolean;
-	requiresPermission?: boolean;
 	execute: (input: unknown) => Promise<ToolResult>;
 }): Tool {
 	return {
@@ -66,7 +64,6 @@ export function defineTool(opts: {
 			},
 		},
 		readonly: opts.readonly,
-		requiresPermission: opts.requiresPermission,
 		execute: opts.execute,
 	};
 }

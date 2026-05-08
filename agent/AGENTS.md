@@ -53,7 +53,6 @@ Built with the TUI framework, all defined in `app.tsx`:
 - `App` - Main application component with chat loop
 - `StatusBar` - Branch name, token usage bar, cost display
 - `TokenBar` - Color-coded progress bar for context window usage (200k)
-- `PermissionDialog` - Tool permission approval dialog (once/chat/session/deny)
 - `MessageView` - Renders user and agent messages with markdown
 - `ToolCallView` - Displays tool calls with user-friendly names (Read, Write, Edit, Search, Grep, Run), input summary,
   output, and inline diffs for write/edit operations
@@ -70,7 +69,6 @@ Built with the TUI framework, all defined in `app.tsx`:
 - Handles `text_delta`, `tool_call_start/end`, `tool_result`, `turn_complete`, `message_complete`, `error` events
 - Double Esc to cancel in-progress generation
 - Tracks token usage and cost (including OpenRouter generation stats)
-- Permission system for tool execution (allow once, per-chat, per-session, deny)
 - Session persistence with thread switching
 
 ## Dependencies

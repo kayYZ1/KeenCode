@@ -18,14 +18,6 @@ export type AgentEvent =
 	| { type: "error"; error: Error };
 
 // ---------------------------------------------------------------------------
-// Permissions
-// ---------------------------------------------------------------------------
-
-export type PermissionDecision = "allow" | "deny";
-
-export type PermissionRequestFn = (toolName: string, args: unknown) => Promise<PermissionDecision>;
-
-// ---------------------------------------------------------------------------
 // Agent config
 // ---------------------------------------------------------------------------
 
@@ -38,7 +30,6 @@ export interface AgentConfig {
 	temperature?: number;
 	contextLimit?: TrimOptions;
 	signal?: AbortSignal;
-	onPermissionRequest?: PermissionRequestFn;
 }
 
 const DEFAULT_MAX_TOOL_ROUNDS = 30;
@@ -181,13 +172,13 @@ export async function* run(
 
 		if (readonlyCalls.length > 0) {
 			const results = await Promise.all(
-				readonlyCalls.map((tc) => executeTool(tc, config.tools, config.onPermissionRequest, config.signal)),
+				readonlyCalls.map((tc) => executeTool(tc, config.tools, config.signal)),
 			);
 			toolResults.push(...results);
 		}
 
 		for (const tc of sideEffectCalls) {
-			toolResults.push(await executeTool(tc, config.tools, config.onPermissionRequest, config.signal));
+			toolResults.push(await executeTool(tc, config.tools, config.signal));
 		}
 
 		// Emit results in original tool call order and collect tool result messages
@@ -261,7 +252,6 @@ async function* withStreamTimeout<T>(
 async function executeTool(
 	tc: ToolCall,
 	tools: ToolRegistry,
-	onPermissionRequest?: PermissionRequestFn,
 	signal?: AbortSignal,
 ): Promise<{ tc: ToolCall; result: ToolResult }> {
 	if (signal?.aborted) {
@@ -281,23 +271,6 @@ async function executeTool(
 	}
 
 	sanitizeToolArgs(tc.function.name, parsedArgs);
-
-	if (tool.requiresPermission && onPermissionRequest) {
-		if (signal?.aborted) {
-			return { tc, result: { content: "Aborted.", isError: true } };
-		}
-		const decision = await onPermissionRequest(tc.function.name, parsedArgs);
-		if (decision === "deny") {
-			return {
-				tc,
-				result: {
-					content:
-						`Permission denied for "${tc.function.name}". Continue the task using other available tools.`,
-					isError: true,
-				},
-			};
-		}
-	}
 
 	try {
 		const result = await tool.execute(parsedArgs);

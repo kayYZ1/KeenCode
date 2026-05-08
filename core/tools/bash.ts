@@ -7,7 +7,6 @@ export const bashTool = defineTool({
 	name: "bash",
 	description:
 		"Execute a shell command. Use only for running project scripts (e.g. deno task, npm run), build/test commands, git operations, and installing packages. Do NOT use bash for file reading, searching, or directory listing — use the dedicated tools (read_file, grep, glob) instead. Commands run in the current working directory.",
-	requiresPermission: true,
 	parameters: {
 		type: "object",
 		properties: {

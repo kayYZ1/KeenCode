@@ -1,4 +1,4 @@
-import { type PermissionDecision, run as runAgent } from "@/core/agent.ts";
+import { run as runAgent } from "@/core/agent.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
 import { entriesToMessages, type Entry, SessionManager } from "@/core/sessions/index.ts";
@@ -170,113 +170,13 @@ const COMMANDS: CommandPaletteItem[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Permissions
-// ---------------------------------------------------------------------------
-
-type PermissionAction = "once" | "chat" | "session" | "deny";
-
-interface PendingPermission {
-	toolName: string;
-	args: unknown;
-	resolve: (action: PermissionAction) => void;
-}
-
-const PERMISSION_OPTIONS: { id: PermissionAction; title: string; description: string }[] = [
-	{ id: "once", title: "Allow Once", description: "Run this command only" },
-	{ id: "chat", title: "Allow for Chat", description: "Allow this tool for the rest of this chat" },
-	{ id: "session", title: "Allow for Session", description: "Allow this tool until app exit" },
-	{ id: "deny", title: "Deny", description: "Block this command" },
-];
-
-const appSessionAllowed = new Set<string>();
-
-function PermissionDialog({ pending }: { pending: PendingPermission | null }) {
-	const selectedIndex = useSignal(0);
-	const pendingRef = useSignal<PendingPermission | null>(null);
-	pendingRef.value = pending;
-
-	const permKey = getHookKey("perm-");
-	if (!hasCleanup(permKey)) {
-		const cleanup = inputManager.onKeyGlobal((event) => {
-			const current = pendingRef.value;
-			if (!current) return false;
-
-			if (event.key === "up") {
-				selectedIndex.value = Math.max(0, selectedIndex.value - 1);
-				return true;
-			}
-			if (event.key === "down") {
-				selectedIndex.value = Math.min(PERMISSION_OPTIONS.length - 1, selectedIndex.value + 1);
-				return true;
-			}
-			if (event.key === "enter") {
-				current.resolve(PERMISSION_OPTIONS[selectedIndex.value].id);
-				selectedIndex.value = 0;
-				return true;
-			}
-			return true;
-		});
-		setCleanup(permKey, cleanup);
-	}
-
-	if (!pending) return <Box />;
-
-	const commandPreview = typeof (pending.args as Record<string, unknown>)?.command === "string"
-		? (pending.args as Record<string, unknown>).command as string
-		: JSON.stringify(pending.args);
-	const displayCmd = commandPreview.length > 80 ? commandPreview.slice(0, 80) + "…" : commandPreview;
-
-	return (
-		<Box position="absolute" bottom={4} left={1}>
-			<Box
-				border="round"
-				borderColor={theme.warning}
-				borderLabel="Permission Required"
-				borderLabelColor={theme.warning}
-				bgColor="default"
-				flexDirection="column"
-				padding={1}
-				gap={1}
-				width={65}
-			>
-				<Box flexDirection="row" gap={1}>
-					<Text color={theme.warning} bold>
-						{pending.toolName}
-					</Text>
-					<Text color={theme.textMuted}>{displayCmd}</Text>
-				</Box>
-				<Box flexDirection="column">
-					{PERMISSION_OPTIONS.map((option, i) => {
-						const isSelected = i === selectedIndex.value;
-						return (
-							<Box key={option.id} flexDirection="row" gap={1}>
-								<Text color={isSelected ? theme.accent : theme.textDim} bold={isSelected}>
-									{isSelected ? ">" : " "}
-								</Text>
-								<Text color={isSelected ? theme.text : theme.textMuted} bold={isSelected}>
-									{option.title}
-								</Text>
-								<Text color={theme.textMuted} italic>
-									{option.description}
-								</Text>
-							</Box>
-						);
-					})}
-				</Box>
-			</Box>
-		</Box>
-	);
-}
-
-// ---------------------------------------------------------------------------
 // Status
 // ---------------------------------------------------------------------------
 
 type AgentStatus =
 	| { kind: "thinking" }
 	| { kind: "writing" }
-	| { kind: "running_tool"; toolName: string }
-	| { kind: "awaiting_permission" };
+	| { kind: "running_tool"; toolName: string };
 
 function formatStatus(status: AgentStatus): string {
 	switch (status.kind) {
@@ -286,8 +186,6 @@ function formatStatus(status: AgentStatus): string {
 			return "Writing...";
 		case "running_tool":
 			return `Running ${status.toolName}...`;
-		case "awaiting_permission":
-			return "Awaiting permission...";
 	}
 }
 
@@ -332,7 +230,7 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 				</Text>
 				{branchName && <Text color={theme.warning}>on {branchName}</Text>}
 			</Box>
-			<Box flexDirection="row" gap={2}>
+			<Box flexDirection="row" gap={1}>
 				<TokenBar tokenCount={tokenCount} />
 				<Box flexDirection="row" gap={1}>
 					<Text color={theme.textDim}>cost:</Text>
@@ -410,13 +308,13 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 	const output = getToolDisplayOutput(tool);
 
 	return (
-		<Box flexDirection="column" gap={1}>
+		<Box flexDirection="column">
 			<Box flexDirection="row" gap={1}>
 				<Text color={theme.warning} bold>{getToolDisplayName(tool.name)}</Text>
 				<Text color={theme.textMuted}>{tool.input}</Text>
 			</Box>
-			{output ? <Text color={theme.textMuted}>{output}</Text> : null}
-			{tool.diff ? <DiffView diff={tool.diff} /> : null}
+			{output && <Text color={theme.textMuted}>{output}</Text>}
+			{tool.diff && <DiffView diff={tool.diff} />}
 		</Box>
 	);
 }
@@ -452,34 +350,35 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	if (msg.role === "user") {
 		return (
-			<Box flexDirection="row" gap={1}>
-				<Text color={theme.success} bold>
-					❯
-				</Text>
-				<Text flex color={theme.text}>
-					{msg.content}
-				</Text>
+			<Box>
+				<Box flexDirection="row" gap={1}>
+					<Text color={theme.success} bold>
+						❯
+					</Text>
+					<Text flex color={theme.text}>
+						{msg.content}
+					</Text>
+				</Box>
 			</Box>
 		);
 	}
 
 	const hasText = !!msg.content?.trim();
 	const hasToolCalls = msg.toolCalls && msg.toolCalls.length > 0;
-	if (!hasText && !hasToolCalls) return <Box />;
+
+	if (!hasText && !hasToolCalls) return null;
 
 	return (
-		<Box flexDirection="column" gap={1}>
-			{hasText
-				? (
-					<Box flexDirection="row" gap={1}>
-						<Text color={theme.info} bold>
-							●
-						</Text>
-						<Markdown flex>{msg.content}</Markdown>
-					</Box>
-				)
-				: null}
-			{msg.toolCalls?.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
+		<Box>
+			{hasText && (
+				<Box flexDirection="row" gap={1}>
+					<Text color={theme.info} bold>
+						●
+					</Text>
+					<Markdown flex>{msg.content}</Markdown>
+				</Box>
+			)}
+			{hasToolCalls && msg.toolCalls.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
 		</Box>
 	);
 }
@@ -531,29 +430,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 	const session = useSignal<SessionManager>(initialSession);
 	const abortController = useSignal<AbortController | null>(null);
 	const escPrimed = useSignal(false);
-
-	const chatAllowed = useSignal(new Set<string>());
-	const pendingPermission = useSignal<PendingPermission | null>(null);
-
-	const onPermissionRequest = (toolName: string, args: unknown): Promise<PermissionDecision> => {
-		if (appSessionAllowed.has(toolName) || chatAllowed.value.has(toolName)) {
-			return Promise.resolve("allow");
-		}
-
-		status.value = { kind: "awaiting_permission" };
-		return new Promise<PermissionAction>((resolve) => {
-			pendingPermission.value = { toolName, args, resolve };
-		}).then((action) => {
-			pendingPermission.value = null;
-			status.value = { kind: "thinking" };
-			if (action === "chat") {
-				chatAllowed.value = new Set([...chatAllowed.value, toolName]);
-			} else if (action === "session") {
-				appSessionAllowed.add(toolName);
-			}
-			return action === "deny" ? "deny" as const : "allow" as const;
-		});
-	};
 
 	// Double-Esc to cancel streaming (only when loading, so it doesn't conflict with vim mode toggle)
 	const cancelKey = getHookKey("cancel-");
@@ -648,7 +524,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			temperature: config.temperature,
 			contextLimit: { maxTokens: config.maxTokens, preserveRecentTurns: config.preserveRecentTurns },
 			signal: ac.signal,
-			onPermissionRequest,
 		});
 
 		for await (const event of events) {
@@ -820,7 +695,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				uiMessages.value = [];
 				tokenCount.value = 0;
 				totalCost.value = 0;
-				chatAllowed.value = new Set();
 				sessionId.value++;
 				session.value = SessionManager.create(Deno.cwd());
 			} else if (item.id === "threads") {
@@ -865,7 +739,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			{uiMessages.value.length === 0
 				? <WelcomeScreen version={VERSION} />
 				: (
-					<ScrollArea flex flexDirection="column" gap={1} padding={1} scrollbar focused autoScroll>
+					<ScrollArea flex flexDirection="column" padding={1} scrollbar focused autoScroll>
 						{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
 					</ScrollArea>
 				)}
@@ -883,7 +757,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 					cursorPosition={cursor.value}
 					placeholder="What can I help you build?"
 					placeholderColor={theme.textDim}
-					focused={!pendingPermission.value}
+					focused
 				/>
 			</Box>
 
@@ -914,7 +788,6 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				</Text>
 			</Box>
 
-			<PermissionDialog pending={pendingPermission.value} />
 			<CommandPalette palette={palette} />
 			<CommandPalette palette={filePalette} placeholder="Search files..." borderLabel="Files" />
 			<CommandPalette palette={threadsPalette} placeholder="Search threads..." borderLabel="Threads" width={80} />

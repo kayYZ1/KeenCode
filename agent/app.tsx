@@ -313,7 +313,7 @@ function ToolCallView({ tool }: { key?: number; tool: UIToolCall }) {
 				<Text color={theme.warning} bold>{getToolDisplayName(tool.name)}</Text>
 				<Text color={theme.textMuted}>{tool.input}</Text>
 			</Box>
-			{output && <Text color={theme.textMuted}>{output}</Text>}
+			{output && <Text color={theme.textMuted}>{output.trim()}</Text>}
 			{tool.diff && <DiffView diff={tool.diff} />}
 		</Box>
 	);
@@ -350,7 +350,7 @@ function getToolDisplayOutput(tool: UIToolCall): string | null {
 function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	if (msg.role === "user") {
 		return (
-			<Box>
+			<Box flexDirection="column" gap={1}>
 				<Box flexDirection="row" gap={1}>
 					<Text color={theme.success} bold>
 						❯
@@ -369,13 +369,13 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 	if (!hasText && !hasToolCalls) return null;
 
 	return (
-		<Box>
+		<Box flexDirection="column" gap={1}>
 			{hasText && (
 				<Box flexDirection="row" gap={1}>
 					<Text color={theme.info} bold>
 						●
 					</Text>
-					<Markdown flex>{msg.content}</Markdown>
+					<Markdown flex>{msg.content.trim()}</Markdown>
 				</Box>
 			)}
 			{hasToolCalls && msg.toolCalls.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
@@ -739,7 +739,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			{uiMessages.value.length === 0
 				? <WelcomeScreen version={VERSION} />
 				: (
-					<ScrollArea flex flexDirection="column" padding={1} scrollbar focused autoScroll>
+					<ScrollArea flex flexDirection="column" padding={1} gap={1} scrollbar focused autoScroll>
 						{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
 					</ScrollArea>
 				)}

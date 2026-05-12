@@ -7,14 +7,16 @@ export interface KeenCodeConfig {
 	temperature: number;
 	maxTokens: number;
 	preserveRecentTurns: number;
+	maxCompletionTokens: number;
 }
 
 const defaults: KeenCodeConfig = {
 	baseURL: "https://openrouter.ai/api/v1",
 	model: "moonshotai/kimi-k2.6",
 	temperature: 0.1,
-	maxTokens: 200_000,
+	maxTokens: 350_000,
 	preserveRecentTurns: 6,
+	maxCompletionTokens: 16_384,
 };
 
 function loadUserConfig(): Partial<KeenCodeConfig> {

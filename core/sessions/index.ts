@@ -1,3 +1,3 @@
-export { entriesToMessages, SessionManager } from "./manager.ts";
+export { entriesToMessages, SessionManager, stripAttachedContext } from "./manager.ts";
 export { sessionDir, sessionsBaseDir } from "./paths.ts";
 export type { Entry, MessageEntry, Session, SessionHeader, SessionSummary, ToolResultEntry } from "./types.ts";

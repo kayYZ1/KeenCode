@@ -1,7 +1,7 @@
 import { run as runAgent } from "@/core/agent.ts";
 import { CompletionsProvider } from "@/api/providers/completions.ts";
 import { createToolRegistry, defaultTools } from "@/core/tools/index.ts";
-import { entriesToMessages, type Entry, SessionManager } from "@/core/sessions/index.ts";
+import { entriesToMessages, type Entry, SessionManager, stripAttachedContext } from "@/core/sessions/index.ts";
 import { run } from "@/tui/render/index.ts";
 import {
 	Box,
@@ -479,8 +479,17 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 		// Resolve @mentions: read file/directory contents and append as context
 		const expandedValue = await expandMentions(value);
 
-		await session.value.append({ type: "message", role: "user", content: expandedValue });
+		// Store stripped version in session (without file content bloat in history)
+		await session.value.append({ type: "message", role: "user", content: stripAttachedContext(expandedValue) });
 		const messages = entriesToMessages(session.value.getEntries());
+
+		// Replace the last user message with the full expanded content for the LLM
+		for (let i = messages.length - 1; i >= 0; i--) {
+			if (messages[i].role === "user") {
+				messages[i] = { ...messages[i], content: expandedValue };
+				break;
+			}
+		}
 
 		const draft = { text: "", toolCalls: [] as UIToolCall[], msgIndex: -1 };
 		const toolCallState = new Map<string, { name: string; args: string }>();
@@ -523,6 +532,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			systemPrompt: SYSTEM_PROMPT,
 			temperature: config.temperature,
 			contextLimit: { maxTokens: config.maxTokens, preserveRecentTurns: config.preserveRecentTurns },
+			maxTokens: config.maxCompletionTokens,
 			signal: ac.signal,
 		});
 

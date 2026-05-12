@@ -1,4 +1,4 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { estimateMessageTokens, estimateTokens, trimContext } from "@/core/context.ts";
 import type { Message } from "@/api/types.ts";
 
@@ -7,7 +7,7 @@ import type { Message } from "@/api/types.ts";
 // ---------------------------------------------------------------------------
 
 Deno.test("estimateTokens - basic string", () => {
-	assertEquals(estimateTokens("hello"), 2); // ceil(5/3) = 2
+	assertEquals(estimateTokens("hello"), 2); // ceil(5/4) = 2
 });
 
 Deno.test("estimateTokens - empty string", () => {
@@ -36,8 +36,8 @@ Deno.test("estimateMessageTokens - message with tool_calls adds name + args toke
 			},
 		],
 	};
-	// overhead 8 + estimateTokens("read_file") [ceil(9/3)=3] + estimateTokens('{"path":"/tmp"}') [ceil(15/3)=5] = 16
-	assertEquals(estimateMessageTokens(msg), 16);
+	// overhead 8 + ceil(9/4)=3 + ceil(15/4)=4 = 15
+	assertEquals(estimateMessageTokens(msg), 15);
 });
 
 // ---------------------------------------------------------------------------
@@ -57,7 +57,7 @@ Deno.test("trimContext - returns messages unchanged when under budget", () => {
 // trimContext — summarization
 // ---------------------------------------------------------------------------
 
-Deno.test("trimContext - summarizes old tool results before dropping", () => {
+Deno.test("trimContext - summarizes old droppable turns into compact format", () => {
 	const longContent = "x\ny\nz\n" + "a".repeat(600);
 	const messages: Message[] = [
 		{ role: "system", content: "sys" },
@@ -71,15 +71,12 @@ Deno.test("trimContext - summarizes old tool results before dropping", () => {
 		{ role: "assistant", content: "done" },
 	];
 
-	// Budget tight enough to trigger summarization but large enough to keep all turns
-	// Add COMPLETION_HEADROOM (16_000) since trimContext subtracts it from maxTokens
-	const totalBefore = messages.reduce((s, m) => s + estimateMessageTokens(m), 0);
-	const result = trimContext(messages, { maxTokens: totalBefore + 16_000 - 10, preserveRecentTurns: 2 });
+	const result = trimContext(messages, { maxTokens: 100 + 16_000, preserveRecentTurns: 2 });
 
-	// The tool message content should be summarized
-	const toolMsg = result.find((m) => m.role === "tool");
-	assertEquals(toolMsg !== undefined, true);
-	assertEquals(toolMsg!.content!.includes("trimmed to save context"), true);
+	// The old assistant+grep turn should be summarized into a [previous turn] message
+	const summaryMsg = result.find((m) => m.role === "user" && m.content?.includes("[previous turn]"));
+	assertEquals(summaryMsg !== undefined, true);
+	assertStringIncludes(summaryMsg!.content!, "Called: grep");
 });
 
 // ---------------------------------------------------------------------------
@@ -95,17 +92,11 @@ Deno.test("trimContext - drops oldest droppable turns when still over budget", (
 		{ role: "assistant", content: "new answer" },
 	];
 
-	// sys=9, old question=12, old answer=12, new question=12, new answer=12 = 57
-	// Budget = maxTokens - 16_000, so set maxTokens = 33 + 16_000 = 16_033
-	// Budget of 33 = sys(9) + new question(12) + new answer(12) = 33
-	// Note: first user ("old question") is non-droppable, but old answer is droppable
-	const result = trimContext(messages, { maxTokens: 16_033, preserveRecentTurns: 2 });
+	// Budget only enough for sys + first user + recent turns
+	const result = trimContext(messages, { maxTokens: 42 + 16_000, preserveRecentTurns: 2 });
 
-	// System is always kept
 	assertEquals(result[0].role, "system");
-	// Old assistant should be dropped (old user is non-droppable as first user msg)
 	assertEquals(result.some((m) => m.content === "old answer"), false);
-	// Recent turns preserved
 	assertEquals(result.some((m) => m.content === "new question"), true);
 	assertEquals(result.some((m) => m.content === "new answer"), true);
 });
@@ -121,8 +112,7 @@ Deno.test("trimContext - never drops system messages", () => {
 		{ role: "assistant", content: "a" },
 	];
 
-	// Budget = maxTokens - 16_000; need system to survive even at very tight budget
-	const result = trimContext(messages, { maxTokens: 16_020, preserveRecentTurns: 1 });
+	const result = trimContext(messages, { maxTokens: 23 + 16_000, preserveRecentTurns: 1 });
 
 	assertEquals(result.some((m) => m.role === "system" && m.content === "important system prompt"), true);
 });
@@ -131,29 +121,28 @@ Deno.test("trimContext - never drops system messages", () => {
 // trimContext — preserveRecentTurns
 // ---------------------------------------------------------------------------
 
-Deno.test("trimContext - preserves recent turns", () => {
+Deno.test("trimContext - preserves recent turns intact, drops old ones", () => {
 	const messages: Message[] = [
 		{ role: "system", content: "sys" },
-		{ role: "user", content: "old" },
+		{ role: "user", content: "old q" },
 		{ role: "assistant", content: "old reply" },
 		{ role: "user", content: "recent1" },
-		{ role: "assistant", content: "recent reply1" },
+		{ role: "assistant", content: "recent r1" },
 		{ role: "user", content: "recent2" },
-		{ role: "assistant", content: "recent reply2" },
+		{ role: "assistant", content: "recent r2" },
 	];
 
-	// sys=9, old=9, old reply=11, recent1=11, recent reply1=13, recent2=11, recent reply2=13
-	// Budget = maxTokens - 16_000. Need recent 4 turns + sys = 9+11+13+11+13=57
-	// "old" (first user) is non-droppable, so it survives too; "old reply" should be dropped
-	const result = trimContext(messages, { maxTokens: 57 + 16_000, preserveRecentTurns: 4 });
+	// Budget allows sys + first user + last 2 turns
+	const result = trimContext(messages, { maxTokens: 44 + 16_000, preserveRecentTurns: 2 });
 
-	// Last 4 turns should survive
+	// System survives
+	assertEquals(result[0].role, "system");
+	// Last 2 turns survive intact
 	assertEquals(result.some((m) => m.content === "recent2"), true);
-	assertEquals(result.some((m) => m.content === "recent reply2"), true);
-	assertEquals(result.some((m) => m.content === "recent1"), true);
-	assertEquals(result.some((m) => m.content === "recent reply1"), true);
-	// Old assistant reply should be dropped
-	assertEquals(result.some((m) => m.content === "old reply"), false);
+	assertEquals(result.some((m) => m.content === "recent r2"), true);
+	// Turns beyond preserve boundary are dropped (after summarization fails to fit)
+	assertEquals(result.some((m) => m.content === "recent1"), false);
+	assertEquals(result.some((m) => m.content === "recent r1"), false);
 });
 
 // ---------------------------------------------------------------------------
@@ -173,7 +162,7 @@ Deno.test("trimContext - groups assistant + tool messages together when dropping
 		{ role: "assistant", content: "final" },
 	];
 
-	const result = trimContext(messages, { maxTokens: 20 + 16_000, preserveRecentTurns: 2 });
+	const result = trimContext(messages, { maxTokens: 30 + 16_000, preserveRecentTurns: 2 });
 
 	// The assistant+tool group should be dropped together
 	assertEquals(result.some((m) => m.role === "tool" && m.tool_call_id === "c1"), false);

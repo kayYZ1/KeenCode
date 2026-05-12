@@ -157,15 +157,22 @@ export class Renderer {
 
 	// --- Reconcile path: diff VNode against existing Instance tree ---
 
-	reconcile(vnode: VNode, existing: Instance | null): Instance {
+	reconcile(vnode: VNode, existing: Instance | null): Instance | null {
 		if (typeof vnode.type === "function") {
 			const store = existing?.hookStore ?? createHookStore();
 			setCurrentStore(store);
 			while (typeof vnode.type === "function") {
-				vnode = (vnode.type as any)(vnode.props);
+				const resolved = (vnode.type as any)(vnode.props);
+				if (!resolved) {
+					clearCurrentStore();
+					if (existing) this.freeYogaNodes(existing);
+					return null;
+				}
+				vnode = resolved;
 			}
 			clearCurrentStore();
 			const instance = this.reconcile(vnode, existing);
+			if (!instance) return null;
 			instance.hookStore = store;
 			return instance;
 		}
@@ -313,7 +320,7 @@ export class Renderer {
 						const key = vnode.props.key;
 						const oldChild = this.consumeOldChild(ctx, key);
 						const inst = this.reconcile(vnode, oldChild);
-						newChildren.push(inst);
+						if (inst) newChildren.push(inst);
 					}
 				} else {
 					const key = vnode.props.key;
@@ -324,9 +331,16 @@ export class Renderer {
 						store = createHookStore();
 						setCurrentStore(store);
 						while (typeof vnode.type === "function") {
-							vnode = (vnode.type as any)(vnode.props);
+							const resolved = (vnode.type as any)(vnode.props);
+							if (!resolved) {
+								vnode = null as any;
+								break;
+							}
+							vnode = resolved;
 						}
 						clearCurrentStore();
+
+						if (!vnode) continue;
 
 						if (vnode.type === "fragment") {
 							const fragChildren = Array.isArray(vnode.props.children)
@@ -343,9 +357,19 @@ export class Renderer {
 						store = oldChild?.hookStore ?? createHookStore();
 						setCurrentStore(store);
 						while (typeof vnode.type === "function") {
-							vnode = (vnode.type as any)(vnode.props);
+							const resolved = (vnode.type as any)(vnode.props);
+							if (!resolved) {
+								vnode = null as any;
+								break;
+							}
+							vnode = resolved;
 						}
 						clearCurrentStore();
+
+						if (!vnode) {
+							if (oldChild) this.freeYogaNodes(oldChild);
+							continue;
+						}
 
 						if (vnode.type === "fragment") {
 							const fragChildren = Array.isArray(vnode.props.children)
@@ -354,9 +378,11 @@ export class Renderer {
 							this.resolveAndReconcile(fragChildren.flat(Infinity), ctx, newChildren);
 						} else {
 							const inst = this.reconcile(vnode, oldChild);
-							if (componentType) inst.componentType = componentType;
-							inst.hookStore = store;
-							newChildren.push(inst);
+							if (inst) {
+								if (componentType) inst.componentType = componentType;
+								inst.hookStore = store;
+								newChildren.push(inst);
+							}
 						}
 					}
 				}
@@ -374,6 +400,8 @@ export class Renderer {
 		} else {
 			this.rootInstance = this.mountInstance(vnode);
 		}
+
+		if (!this.rootInstance) return;
 
 		this.rootInstance.yogaNode.setWidth(this.terminal.width);
 		this.rootInstance.yogaNode.setHeight(this.terminal.height);

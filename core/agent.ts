@@ -30,6 +30,7 @@ export interface AgentConfig {
 	temperature?: number;
 	contextLimit?: TrimOptions;
 	signal?: AbortSignal;
+	maxTokens?: number;
 }
 
 const DEFAULT_MAX_TOOL_ROUNDS = 30;
@@ -91,6 +92,7 @@ export async function* run(
 					messages: effectiveContext,
 					tools: useTools ? toolDefs : undefined,
 					temperature: config.temperature,
+					max_tokens: config.maxTokens,
 					signal: config.signal,
 				});
 

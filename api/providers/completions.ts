@@ -48,7 +48,7 @@ export class CompletionsProvider implements LLMProvider {
 			...(request.tools && { tools: request.tools }),
 			...(request.tool_choice && { tool_choice: request.tool_choice }),
 			...(request.temperature !== undefined && { temperature: request.temperature }),
-			...(request.max_tokens !== undefined && { max_tokens: request.max_tokens }),
+			max_tokens: request.max_tokens ?? 16_384,
 		};
 	}
 

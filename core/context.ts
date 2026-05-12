@@ -4,9 +4,11 @@ import type { Message } from "@/api/types.ts";
 // Token estimation (heuristic: ~4 chars per token)
 // ---------------------------------------------------------------------------
 
-const CHARS_PER_TOKEN = 3;
-const MESSAGE_OVERHEAD = 8; // role, separators, serialization overhead
-const COMPLETION_HEADROOM = 16_000; // reserve tokens for the model's reply
+const CHARS_PER_TOKEN = 4;
+const MESSAGE_OVERHEAD = 8;
+const COMPLETION_HEADROOM = 16_000;
+
+export const COMPLETION_TOKEN_LIMIT = 16_384;
 
 export function estimateTokens(text: string): number {
 	return Math.ceil(text.length / CHARS_PER_TOKEN);
@@ -34,12 +36,6 @@ interface Turn {
 	droppable: boolean;
 }
 
-/**
- * Group messages into turns. A turn is:
- * - System message (not droppable)
- * - User message
- * - Assistant message + its following tool result messages
- */
 function groupIntoTurns(messages: Message[]): Turn[] {
 	const turns: Turn[] = [];
 	let i = 0;
@@ -57,7 +53,6 @@ function groupIntoTurns(messages: Message[]): Turn[] {
 			const group: Message[] = [msg];
 			let groupTokens = estimateMessageTokens(msg);
 
-			// Collect following tool result messages
 			if (msg.tool_calls?.length) {
 				let j = i + 1;
 				while (j < messages.length && messages[j].role === "tool") {
@@ -72,13 +67,11 @@ function groupIntoTurns(messages: Message[]): Turn[] {
 
 			turns.push({ messages: group, tokens: groupTokens, droppable: true });
 		} else {
-			// Orphan tool message — keep but mark droppable
 			turns.push({ messages: [msg], tokens: estimateMessageTokens(msg), droppable: true });
 			i++;
 		}
 	}
 
-	// Make the first user message non-droppable to preserve the original goal
 	const firstUserTurn = turns.find((t) => t.messages[0]?.role === "user");
 	if (firstUserTurn) firstUserTurn.droppable = false;
 
@@ -86,41 +79,67 @@ function groupIntoTurns(messages: Message[]): Turn[] {
 }
 
 // ---------------------------------------------------------------------------
-// Tool result summarization
+// Semantic tool result summarization
 // ---------------------------------------------------------------------------
 
-const SUMMARY_THRESHOLD = 300; // only summarize content longer than this (chars)
-
-function summarizeToolContent(content: string, toolName: string): string {
-	const lines = content.split("\n");
-	const preview = lines.slice(0, 3).join("\n");
-	return `${preview}\n... [${toolName}: ${lines.length} lines, ${content.length} chars — trimmed to save context]`;
-}
-
-function summarizeUserContent(content: string): string {
-	const firstLine = content.split("\n")[0];
-	return `${firstLine}\n... [user message: ${content.length} chars — trimmed to save context]`;
-}
-
-function summarizeTurn(turn: Turn): Turn {
-	let changed = false;
-	const messages = turn.messages.map((msg) => {
-		if ((msg.role === "tool" || msg.role === "user") && msg.content && msg.content.length > SUMMARY_THRESHOLD) {
-			changed = true;
-			if (msg.role === "user") {
-				return { ...msg, content: summarizeUserContent(msg.content) };
-			}
-			return { ...msg, content: summarizeToolContent(msg.content, msg.name ?? "tool") };
+function summarizeToolResult(content: string, toolName: string): string {
+	if (content.startsWith("Failed") || content.startsWith("Error")) {
+		return `failed: ${content.slice(0, 100)}`;
+	}
+	switch (toolName) {
+		case "bash": {
+			const firstLine = content.split("\n")[0];
+			if (firstLine === "(no output)") return "no output";
+			if (/^exit code \d+/.test(firstLine)) return firstLine;
+			return firstLine.slice(0, 120);
 		}
-		return msg;
-	});
+		case "read_file": {
+			if (content.startsWith("Failed")) return "failed to read";
+			const lines = content.split("\n").length;
+			return `read ${lines} lines`;
+		}
+		case "write_file":
+		case "edit_file": {
+			return content.split("\n")[0];
+		}
+		case "grep":
+		case "glob": {
+			if (content === "No matches found." || content === "No files matched the pattern.") {
+				return "no matches";
+			}
+			const lines = content.split("\n").filter((l) => l.trim());
+			return `found ${lines.length} result${lines.length !== 1 ? "s" : ""}`;
+		}
+		default:
+			return content.slice(0, 120);
+	}
+}
 
-	if (!changed) return turn;
+function turnToSummary(turn: Turn): Message {
+	const parts: string[] = [];
+
+	for (const msg of turn.messages) {
+		if (msg.role === "user" && msg.content) {
+			const preview = msg.content.slice(0, 200).replace(/\n/g, " ");
+			parts.push(`User: ${preview}${msg.content.length > 200 ? "…" : ""}`);
+		} else if (msg.role === "assistant") {
+			if (msg.tool_calls?.length) {
+				const names = msg.tool_calls.map((tc) => tc.function.name).join(", ");
+				parts.push(`Called: ${names}`);
+			}
+			if (msg.content) {
+				const preview = msg.content.slice(0, 100).replace(/\n/g, " ");
+				parts.push(`Said: ${preview}${msg.content.length > 100 ? "…" : ""}`);
+			}
+		} else if (msg.role === "tool") {
+			const summary = summarizeToolResult(msg.content || "", msg.name ?? "tool");
+			parts.push(`→ ${summary}`);
+		}
+	}
 
 	return {
-		messages,
-		tokens: messages.reduce((sum, m) => sum + estimateMessageTokens(m), 0),
-		droppable: turn.droppable,
+		role: "user",
+		content: `[previous turn]\n${parts.join("\n")}`,
 	};
 }
 
@@ -131,7 +150,7 @@ function summarizeTurn(turn: Turn): Turn {
 export interface TrimOptions {
 	/** Maximum token budget for the context. Default: 100_000 */
 	maxTokens?: number;
-	/** Number of recent turns to always keep intact (not summarized or dropped). Default: 4 */
+	/** Number of recent turns to always keep intact (not summarized or dropped). Default: 6 */
 	preserveRecentTurns?: number;
 }
 
@@ -143,7 +162,7 @@ const DEFAULT_PRESERVE_RECENT_TURNS = 6;
  *
  * Strategy (applied in order):
  * 1. If under budget → return as-is
- * 2. Summarize old tool results (replace long content with previews)
+ * 2. Summarize old turns into compact summary messages
  * 3. Drop oldest droppable turns until under budget
  */
 export function trimContext(messages: Message[], options: TrimOptions = {}): Message[] {
@@ -155,15 +174,18 @@ export function trimContext(messages: Message[], options: TrimOptions = {}): Mes
 
 	if (totalTokens <= budget) return messages;
 
-	// Boundary: turns at or after this index are "recent" and kept intact
+	// Phase 1: Summarize all droppable turns before the preserve boundary
 	const recentStart = Math.max(0, turns.length - preserveRecent);
-
-	// Phase 1: Summarize old tool results
 	for (let i = 0; i < recentStart; i++) {
 		if (!turns[i].droppable) continue;
-		const summarized = summarizeTurn(turns[i]);
-		totalTokens += summarized.tokens - turns[i].tokens;
-		turns[i] = summarized;
+		const summary = turnToSummary(turns[i]);
+		const summaryTokens = estimateMessageTokens(summary);
+		totalTokens += summaryTokens - turns[i].tokens;
+		turns[i] = {
+			messages: [summary],
+			tokens: summaryTokens,
+			droppable: turns[i].droppable,
+		};
 	}
 
 	if (totalTokens <= budget) {

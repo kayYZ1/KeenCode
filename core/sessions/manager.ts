@@ -212,6 +212,17 @@ export class SessionManager {
 		this.headerDirty = true;
 	}
 
+	/** Get the current total cost from the session header. */
+	getCost(): number {
+		return this.session.header.cost ?? 0;
+	}
+
+	/** Update the total cost in the session header (persisted on next append or flush). */
+	setCost(cost: number): void {
+		this.session.header.cost = cost;
+		this.headerDirty = true;
+	}
+
 	/** Flush a dirty header by rewriting the session file. */
 	private async flushHeader(): Promise<void> {
 		if (!this.path || !this.headerDirty) return;

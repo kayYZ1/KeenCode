@@ -11,6 +11,7 @@ export interface SessionHeader {
 	timestamp: string;
 	cwd: string;
 	tokens?: number;
+	cost?: number;
 }
 
 // ---------------------------------------------------------------------------

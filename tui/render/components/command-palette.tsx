@@ -41,9 +41,6 @@ export function CommandPalette(props: CommandPaletteProps) {
 						const isSelected = i === palette.selectedIndex.value;
 						return (
 							<Box key={item.id} flexDirection="row" gap={1}>
-								<Text color={isSelected ? theme.accent : theme.textDim} bold={isSelected}>
-									{isSelected ? ">" : " "}
-								</Text>
 								<Text color={isSelected ? theme.text : theme.textMuted} bold={isSelected}>
 									{item.title}
 								</Text>

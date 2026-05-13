@@ -585,14 +585,20 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				case "message_complete": {
 					if (event.usage) {
 						tokenCount.value = event.usage.prompt_tokens + event.usage.completion_tokens;
-						if (event.usage.cost) totalCost.value += event.usage.cost;
+						if (event.usage.cost) {
+							totalCost.value += event.usage.cost;
+							session.value.setCost(totalCost.value);
+						}
 						session.value.setTokens(tokenCount.value);
 					}
 					if (event.generationId) {
 						const sid = sessionId.value;
 						provider.getGenerationStats(event.generationId).then((stats) => {
 							if (!stats || sessionId.value !== sid) return;
-							if (stats.totalCost !== null) totalCost.value += stats.totalCost;
+							if (stats.totalCost !== null) {
+								totalCost.value += stats.totalCost;
+								session.value.setCost(totalCost.value);
+							}
 							if (!event.usage && stats.promptTokens !== null && stats.completionTokens !== null) {
 								tokenCount.value = stats.promptTokens + stats.completionTokens;
 								session.value.setTokens(tokenCount.value);
@@ -667,7 +673,7 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				session.value = sm;
 				uiMessages.value = entriesToUIMessages(sm.getEntries());
 				tokenCount.value = sm.getTokens();
-				totalCost.value = 0;
+				totalCost.value = sm.getCost();
 				sessionId.value++;
 			});
 		},

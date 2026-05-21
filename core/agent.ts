@@ -322,7 +322,7 @@ function enrichError(toolName: string, rawError: string, kind: ErrorKind): ToolR
 
 function getExecutionHint(error: string): string {
 	if (error.includes("No such file") || error.includes("ENOENT") || error.includes("not found")) {
-		return "The file or path does not exist. Use glob to find the correct path before retrying.";
+		return "The file or path does not exist. Use grep or bash (rg/find/ls) to locate the correct path before retrying.";
 	}
 	if (error.includes("Permission denied") || error.includes("EACCES")) {
 		return "Permission denied. Check file permissions or try a different approach.";

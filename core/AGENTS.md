@@ -17,8 +17,7 @@ core/
 │   ├── write.ts          # File writing
 │   ├── edit.ts           # File editing (find-and-replace)
 │   ├── diff.ts           # Unified diff generation via git diff
-│   ├── grep.ts           # Text search (ripgrep-style)
-│   └── glob.ts           # File pattern matching
+│   └── grep.ts           # Text search (ripgrep-style)
 ├── sessions/             # Session persistence
 │   ├── index.ts          # Public exports
 │   ├── manager.ts        # Session CRUD (create, list, load, save, delete)
@@ -78,7 +77,7 @@ interface Tool {
 ```
 
 Built-in tools (`defaultTools`): `bash` (Run), `read_file` (Read), `write_file` (Write), `edit_file` (Edit), `grep`
-(Grep), `glob` (Search)
+(Grep)
 
 ### Context Management
 

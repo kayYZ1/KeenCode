@@ -15,9 +15,12 @@ const LOGO_LINES = [
 export interface WelcomeScreenProps {
 	version: string;
 	subtitle?: string;
+	hints?: string;
 }
 
-export function WelcomeScreen({ version, subtitle = "Type a message to get started" }: WelcomeScreenProps) {
+export function WelcomeScreen(
+	{ version, subtitle = "Type a message to get started", hints }: WelcomeScreenProps,
+) {
 	return (
 		<Box flex flexDirection="column" justifyContent="center" alignItems="center" gap={1}>
 			<Box flexDirection="column">
@@ -27,6 +30,7 @@ export function WelcomeScreen({ version, subtitle = "Type a message to get start
 				<Text color={theme.textMuted}>v{version} — terminal coding agent</Text>
 				<Text color={theme.textDim}>{config.model.split("/").pop()}</Text>
 				<Text color={theme.textDim} italic>{subtitle}</Text>
+				{hints && <Text color={theme.textDim} italic>{hints}</Text>}
 			</Box>
 		</Box>
 	);

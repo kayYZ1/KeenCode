@@ -378,7 +378,7 @@ function MessageView({ msg }: { key?: number; msg: UIMessage }) {
 					<Markdown flex>{msg.content.trim()}</Markdown>
 				</Box>
 			)}
-			{hasToolCalls && msg.toolCalls.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
+			{hasToolCalls && msg.toolCalls?.map((tool, i) => <ToolCallView key={i} tool={tool} />)}
 		</Box>
 	);
 }
@@ -753,7 +753,12 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 			<StatusBar tokenCount={tokenCount.value} totalCost={totalCost.value} />
 
 			{uiMessages.value.length === 0
-				? <WelcomeScreen version={VERSION} />
+				? (
+					<WelcomeScreen
+						version={VERSION}
+						hints="Enter to send • @ for files • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode"
+					/>
+				)
 				: (
 					<ScrollArea flex flexDirection="column" padding={1} gap={1} scrollbar focused autoScroll>
 						{uiMessages.value.map((msg, i) => <MessageView key={i} msg={msg} />)}
@@ -777,32 +782,27 @@ function App({ onQuit, initialSession }: { onQuit: () => void; initialSession: S
 				/>
 			</Box>
 
-			<Box flexDirection="row" justifyContent="space-between" padding={1}>
-				<Box flexDirection="row" gap={1}>
-					{isLoading.value && (
-						<>
-							<Spinner color={theme.accent} />
-							<Text color={theme.textMuted} bold italic>
-								{formatStatus(status.value)}
-							</Text>
-							{escPrimed.value
-								? (
-									<Text color={theme.warning} bold>
-										Press Esc again to cancel
-									</Text>
-								)
-								: (
-									<Text color={theme.textDim} italic>
-										Esc to cancel
-									</Text>
-								)}
-						</>
-					)}
+			{isLoading.value && (
+				<Box flexDirection="row" padding={1}>
+					<Box flexDirection="row" gap={1}>
+						<Spinner color={theme.accent} />
+						<Text color={theme.textMuted} bold italic>
+							{formatStatus(status.value)}
+						</Text>
+						{escPrimed.value
+							? (
+								<Text color={theme.warning} bold>
+									Press Esc again to cancel
+								</Text>
+							)
+							: (
+								<Text color={theme.textDim} italic>
+									Esc to cancel
+								</Text>
+							)}
+					</Box>
 				</Box>
-				<Text color={theme.textDim} italic>
-					Enter to send • @ for files • / for commands • PageUp/PageDown to scroll • i/Esc to toggle mode
-				</Text>
-			</Box>
+			)}
 
 			<CommandPalette palette={palette} />
 			<CommandPalette palette={filePalette} placeholder="Search files..." borderLabel="Files" />

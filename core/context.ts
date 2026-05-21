@@ -102,9 +102,8 @@ function summarizeToolResult(content: string, toolName: string): string {
 		case "edit_file": {
 			return content.split("\n")[0];
 		}
-		case "grep":
-		case "glob": {
-			if (content === "No matches found." || content === "No files matched the pattern.") {
+		case "grep": {
+			if (content === "No matches found.") {
 				return "no matches";
 			}
 			const lines = content.split("\n").filter((l) => l.trim());

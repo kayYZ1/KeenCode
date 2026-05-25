@@ -27,7 +27,7 @@ export function WelcomeScreen(
 				{LOGO_LINES.map((line, i) => <Text key={i} color={theme.brand}>{line}</Text>)}
 			</Box>
 			<Box flexDirection="column" alignItems="center" gap={1}>
-				<Text color={theme.textMuted}>v{version} — terminal coding agent</Text>
+				<Text color={theme.textMuted}>v{version}</Text>
 				<Text color={theme.textDim}>{config.model.split("/").pop()}</Text>
 				<Text color={theme.textDim} italic>{subtitle}</Text>
 				{hints && <Text color={theme.textDim} italic>{hints}</Text>}

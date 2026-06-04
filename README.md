@@ -194,15 +194,12 @@ deno task playground:welcome          # Welcome screen
 
 ## Releasing
 
-Releases are automated via GitHub Actions. To create a new release:
+Tag-based releases via GitHub Actions (`.github/workflows/release.yml`):
 
-```bash
-deno task version:bump patch   # or minor/major
-git add version.ts
-git commit -m "v$(deno task version 2>/dev/null)"
-git tag "v$(deno task version 2>/dev/null)"
-git push && git push --tags
-```
+1. `deno task version:bump <patch|minor|major>`
+2. Commit and push to `main`
+3. `git tag v<version> && git push --tags`
+4. CI builds Linux binary and creates GitHub Release
 
 This triggers CI to build the Linux binary and publish a GitHub Release.
 

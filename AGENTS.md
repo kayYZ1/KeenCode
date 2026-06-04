@@ -11,20 +11,19 @@ Terminal-based coding agent with custom TUI framework.
 ├── tui/          # Terminal UI framework (see tui/AGENTS.md)
 ├── scripts/      # Build and version bump scripts
 ├── dist/         # Compiled binary output
-├── version.ts    # Version constant (e.g., "0.4.3")
+├── version.ts    # Version constant (e.g., "0.7.2")
 ├── deno.json     # Deno configuration with tasks and import maps
 ```
 
 ## Package Dependencies
 
 ```
-api/      (leaf - no internal deps)
-  ↑
-core/     (depends on api/)
-  ↑
-agent/    (depends on core/, api/, tui/)
-  ↑
-tui/      (leaf - no internal deps)
+tui/  (leaf)     api/  (leaf)
+  ↑                ↑
+  │              core/  (depends on api/)
+  │                ↑
+  └─── agent/ ─────┘
+       (depends on tui/, core/, api/)
 ```
 
 ## Build/Run Commands

@@ -29,7 +29,7 @@ async function build() {
 	const hash = await getGitHash();
 	const fullVersion = `${VERSION}+${hash}`;
 
-	console.log(`Building keencode v${fullVersion}`);
+	console.log(`Building relay v${fullVersion}`);
 
 	await run([
 		"deno",
@@ -41,13 +41,13 @@ async function build() {
 		"--allow-run",
 		"--allow-net",
 		"--output",
-		"dist/keencode",
+		"dist/relay",
 		"agent/index.ts",
 	]);
 
-	const stat = await Deno.stat("dist/keencode");
+	const stat = await Deno.stat("dist/relay");
 	const sizeMB = (stat.size / (1024 * 1024)).toFixed(1);
-	console.log(`\n✓ Built dist/keencode (${sizeMB} MB)`);
+	console.log(`\n✓ Built dist/relay (${sizeMB} MB)`);
 	console.log(`  Version: ${fullVersion}`);
 }
 

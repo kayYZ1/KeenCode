@@ -111,7 +111,7 @@ Deno.test(
 Deno.test(
 	"SessionManager.open - reads a session from a JSONL file on disk",
 	withTempHome(async (tmpHome: string) => {
-		const dir = join(tmpHome, ".keencode", "sessions", "testuser");
+		const dir = join(tmpHome, ".relay", "sessions", "testuser");
 		await Deno.mkdir(dir, { recursive: true });
 
 		const filePath = join(dir, "test_session.jsonl");
@@ -184,7 +184,7 @@ Deno.test("entriesToMessages - converts tool_result entries correctly", () => {
 Deno.test(
 	"SessionManager.list - returns sessions sorted by mtime, most recent first",
 	withTempHome(async (tmpHome: string) => {
-		const dir = join(tmpHome, ".keencode", "sessions", "testuser");
+		const dir = join(tmpHome, ".relay", "sessions", "testuser");
 		await Deno.mkdir(dir, { recursive: true });
 
 		const header = JSON.stringify({
@@ -218,7 +218,7 @@ Deno.test(
 Deno.test(
 	"SessionManager.cleanup - deletes old sessions beyond keep count",
 	withTempHome(async (tmpHome: string) => {
-		const dir = join(tmpHome, ".keencode", "sessions", "testuser");
+		const dir = join(tmpHome, ".relay", "sessions", "testuser");
 		await Deno.mkdir(dir, { recursive: true });
 
 		const header = JSON.stringify({
@@ -254,7 +254,7 @@ Deno.test(
 Deno.test(
 	"SessionManager.listSummaries - returns correct id, timestamp, and first user message",
 	withTempHome(async (tmpHome: string) => {
-		const dir = join(tmpHome, ".keencode", "sessions", "testuser");
+		const dir = join(tmpHome, ".relay", "sessions", "testuser");
 		await Deno.mkdir(dir, { recursive: true });
 
 		const filePath = join(dir, "summary_test.jsonl");

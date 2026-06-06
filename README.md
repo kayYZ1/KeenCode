@@ -1,8 +1,8 @@
-# KeenCode v0.7.2
+# Relay v0.7.2
 
 A terminal-based coding agent with a custom TUI framework, built with Deno and TypeScript.
 
-KeenCode is a monorepo containing a terminal UI framework powered by a custom JSX runtime and Yoga flexbox layout, an
+Relay is a monorepo containing a terminal UI framework powered by a custom JSX runtime and Yoga flexbox layout, an
 OpenAI-compatible LLM API layer with streaming support, and an agentic loop with built-in tools — all wired together
 into an interactive coding assistant that runs entirely in your terminal.
 
@@ -21,17 +21,17 @@ into an interactive coding assistant that runs entirely in your terminal.
 
 ## Install
 
-Download the latest Linux binary from [GitHub Releases](https://github.com/kayYZ1/KeenCode/releases/latest):
+Download the latest Linux binary from [GitHub Releases](https://github.com/kayYZ1/relay/releases/latest):
 
 ```bash
-curl -L https://github.com/kayYZ1/KeenCode/releases/latest/download/keencode -o keencode
-chmod +x keencode
-sudo mv keencode /usr/local/bin/
+curl -L https://github.com/kayYZ1/relay/releases/latest/download/relay -o relay
+chmod +x relay
+sudo mv relay /usr/local/bin/
 ```
 
-On first run, KeenCode will prompt you for an API key and save it to `~/.keencode/auth.json`.
+On first run, Relay will prompt you for an API key and save it to `~/.relay/auth.json`.
 
-Model and provider settings are configured in `~/.keencode/config.json`.
+Model and provider settings are configured in `~/.relay/config.json`.
 
 ## Quick Start
 
@@ -42,8 +42,8 @@ Model and provider settings are configured in `~/.keencode/config.json`.
 ### Setup
 
 ```bash
-git clone https://github.com/kayYZ1/KeenCode.git
-cd KeenCode
+git clone https://github.com/kayYZ1/relay.git
+cd relay
 ```
 
 Set your API key:
@@ -110,7 +110,7 @@ The agent loop is an async generator (`run()`) that streams `AgentEvent`s:
 | `grep`          | Grep         | Search files with regex patterns |
 | `glob`          | Search       | Find files by glob pattern       |
 
-**Session persistence** — Conversations are saved to `~/.keencode/sessions/` as JSONL files with automatic session
+**Session persistence** — Conversations are saved to `~/.relay/sessions/` as JSONL files with automatic session
 management:
 
 - **Create** — New sessions with unique IDs and timestamps
@@ -172,7 +172,7 @@ deno task fmt          # Format code
 deno task fmt:check    # Check formatting
 deno task lint         # Lint
 deno task test         # Run tests
-deno task build        # Build binary (dist/keencode)
+deno task build        # Build binary (dist/relay)
 deno task version      # Show current version
 deno task version:bump <patch|minor|major>  # Bump version
 ```

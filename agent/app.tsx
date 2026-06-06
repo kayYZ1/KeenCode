@@ -226,7 +226,7 @@ function StatusBar({ tokenCount, totalCost }: { tokenCount: number; totalCost: n
 		<Box flexDirection="row" justifyContent="space-between" padding={1}>
 			<Box flexDirection="row" gap={1}>
 				<Text bold color={theme.brand}>
-					KeenCode
+					Relay
 				</Text>
 				{branchName && <Text color={theme.warning}>on {branchName}</Text>}
 			</Box>

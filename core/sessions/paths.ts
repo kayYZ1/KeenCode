@@ -1,12 +1,12 @@
 import { join } from "@std/path/join";
-import { keencodeDir } from "@/core/paths.ts";
+import { relayDir } from "@/core/paths.ts";
 
 function getUsername(): string | undefined {
 	return Deno.env.get("USER") ?? Deno.env.get("USERNAME");
 }
 
 export function sessionsBaseDir(): string {
-	return join(keencodeDir(), "sessions");
+	return join(relayDir(), "sessions");
 }
 
 export function sessionDir(_cwd: string): string {

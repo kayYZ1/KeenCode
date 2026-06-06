@@ -29,8 +29,8 @@ await Deno.writeTextFile("version.ts", content);
 // Update README.md
 const readme = await Deno.readTextFile("README.md");
 const updatedReadme = readme.replace(
-	/KeenCode v\d+\.\d+\.\d+/,
-	`KeenCode v${next}`,
+	/Relay v\d+\.\d+\.\d+/,
+	`Relay v${next}`,
 );
 await Deno.writeTextFile("README.md", updatedReadme);
 

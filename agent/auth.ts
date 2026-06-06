@@ -1,5 +1,5 @@
 import { join } from "@std/path/join";
-import { keencodeDir } from "@/core/paths.ts";
+import { relayDir } from "@/core/paths.ts";
 
 interface AuthData {
 	apiKey: string;
@@ -39,7 +39,7 @@ async function promptAndSave(path: string): Promise<AuthData> {
 		Deno.exit(1);
 	}
 
-	const dir = keencodeDir();
+	const dir = relayDir();
 	Deno.mkdirSync(dir, { recursive: true });
 
 	const data: AuthData = { apiKey: key };
@@ -50,7 +50,7 @@ async function promptAndSave(path: string): Promise<AuthData> {
 }
 
 export async function loadApiKey(): Promise<string> {
-	const path = join(keencodeDir(), "auth.json");
+	const path = join(relayDir(), "auth.json");
 	const existing = loadAuthFile(path);
 	if (existing) return existing.apiKey;
 	const created = await promptAndSave(path);

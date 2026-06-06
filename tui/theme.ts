@@ -1,16 +1,16 @@
 /**
- * Centralized color theme for the KeenCode UI.
+ * Centralized color theme for the Relay UI.
  *
  * Uses 24-bit hex colors for a modern, expressive look.
  * All UI components should reference these values instead of
  * hardcoding color names or hex codes.
  *
- * Users can override any color by creating ~/.keencode/theme.json
+ * Users can override any color by creating ~/.relay/theme.json
  * with a partial set of keys from this object.
  */
 
 import { join } from "@std/path/join";
-import { keencodeDir } from "@/core/paths.ts";
+import { relayDir } from "@/core/paths.ts";
 
 export interface Theme {
 	// Brand / accent
@@ -79,13 +79,13 @@ const defaults: Theme = {
 };
 
 function loadUserTheme(): Partial<Theme> {
-	const path = join(keencodeDir(), "theme.json");
+	const path = join(relayDir(), "theme.json");
 	try {
 		const raw = Deno.readTextFileSync(path);
 		return JSON.parse(raw) as Partial<Theme>;
 	} catch {
 		try {
-			const dir = keencodeDir();
+			const dir = relayDir();
 			Deno.mkdirSync(dir, { recursive: true });
 			Deno.writeTextFileSync(path, JSON.stringify(defaults, null, "\t") + "\n");
 		} catch { /* ignore — read-only fs or similar */ }

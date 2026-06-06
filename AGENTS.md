@@ -47,7 +47,7 @@ pass.
 
 ### Build & Version
 
-- **Build binary**: `deno task build` (compiles to `dist/keencode`)
+- **Build binary**: `deno task build` (compiles to `dist/relay`)
 - **Show version**: `deno task version`
 - **Bump version**: `deno task version:bump <patch|minor|major>`
 

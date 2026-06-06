@@ -1,7 +1,7 @@
 import { join } from "@std/path/join";
-import { keencodeDir } from "@/core/paths.ts";
+import { relayDir } from "@/core/paths.ts";
 
-export interface KeenCodeConfig {
+export interface RelayConfig {
 	baseURL: string;
 	model: string;
 	temperature: number;
@@ -10,7 +10,7 @@ export interface KeenCodeConfig {
 	maxCompletionTokens: number;
 }
 
-const defaults: KeenCodeConfig = {
+const defaults: RelayConfig = {
 	baseURL: "https://openrouter.ai/api/v1",
 	model: "moonshotai/kimi-k2.6",
 	temperature: 0.1,
@@ -19,14 +19,14 @@ const defaults: KeenCodeConfig = {
 	maxCompletionTokens: 16_384,
 };
 
-function loadUserConfig(): Partial<KeenCodeConfig> {
-	const path = join(keencodeDir(), "config.json");
+function loadUserConfig(): Partial<RelayConfig> {
+	const path = join(relayDir(), "config.json");
 	try {
 		const raw = Deno.readTextFileSync(path);
-		return JSON.parse(raw) as Partial<KeenCodeConfig>;
+		return JSON.parse(raw) as Partial<RelayConfig>;
 	} catch {
 		try {
-			const dir = keencodeDir();
+			const dir = relayDir();
 			Deno.mkdirSync(dir, { recursive: true });
 			Deno.writeTextFileSync(path, JSON.stringify(defaults, null, "\t") + "\n");
 		} catch { /* ignore — read-only fs or similar */ }
@@ -34,4 +34,4 @@ function loadUserConfig(): Partial<KeenCodeConfig> {
 	}
 }
 
-export const config: KeenCodeConfig = { ...defaults, ...loadUserConfig() };
+export const config: RelayConfig = { ...defaults, ...loadUserConfig() };

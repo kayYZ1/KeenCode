@@ -21,7 +21,7 @@ core/
 ├── sessions/             # Session persistence
 │   ├── index.ts          # Public exports
 │   ├── manager.ts        # Session CRUD (create, list, load, save, delete)
-│   ├── paths.ts          # Session storage paths (~/.keencode/sessions/)
+│   ├── paths.ts          # Session storage paths (~/.relay/sessions/)
 │   └── types.ts          # Session types
 └── tests/
     ├── agent.test.ts     # Agent loop tests
@@ -91,7 +91,7 @@ Built-in tools (`defaultTools`): `bash` (Run), `read_file` (Read), `write_file` 
 
 `sessions/manager.ts` provides persistent conversation storage:
 
-- Sessions stored as JSON in `~/.keencode/sessions/`
+- Sessions stored as JSON in `~/.relay/sessions/`
 - CRUD operations: create, list, load, save, delete
 - Each session contains message history and metadata
 

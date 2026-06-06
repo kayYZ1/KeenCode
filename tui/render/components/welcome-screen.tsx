@@ -4,13 +4,22 @@ import { config } from "@/agent/config.ts";
 
 // Spaces use \u00A0 (non-breaking space) so wrapText doesn't collapse them
 const LOGO_LINES = [
-	"██╗  ██╗███████╗███████╗███╗   ██╗ ██████╗ ██████╗ ██████╗ ███████╗",
-	"██║ ██╔╝██╔════╝██╔════╝████╗  ██║██╔════╝██╔═══██╗██╔══██╗██╔════╝",
-	"█████╔╝ █████╗  █████╗  ██╔██╗ ██║██║     ██║   ██║██║  ██║█████╗",
-	"██╔═██╗ ██╔══╝  ██╔══╝  ██║╚██╗██║██║     ██║   ██║██║  ██║██╔══╝",
-	"██║  ██╗███████╗███████╗██║ ╚████║╚██████╗╚██████╔╝██████╔╝███████╗",
-	"╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═══╝ ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝",
+	"██████╗ ███████╗██╗      █████╗ ██╗   ██╗",
+	"██╔══██╗██╔════╝██║     ██╔══██╗╚██╗ ██╔╝",
+	"██████╔╝█████╗  ██║     ███████║ ╚████╔╝ ",
+	"██╔══██╗██╔══╝  ██║     ██╔══██║  ╚██╔╝  ",
+	"██║  ██║███████╗███████╗██║  ██║   ██║   ",
+	"╚═╝  ╚═╝╚══════╝╚══════╝╚═╝  ╚═╝   ╚═╝   ",
 ].map((line) => line.replace(/ /g, "\u00A0"));
+
+const LOGO_COLORS = [
+	theme.brand,
+	theme.heading1,
+	theme.info,
+	theme.accent,
+	theme.success,
+	theme.warning,
+];
 
 export interface WelcomeScreenProps {
 	version: string;
@@ -24,7 +33,7 @@ export function WelcomeScreen(
 	return (
 		<Box flex flexDirection="column" justifyContent="center" alignItems="center" gap={1}>
 			<Box flexDirection="column">
-				{LOGO_LINES.map((line, i) => <Text key={i} color={theme.brand}>{line}</Text>)}
+				{LOGO_LINES.map((line, i) => <Text key={i} color={LOGO_COLORS[i]} bold>{line}</Text>)}
 			</Box>
 			<Box flexDirection="column" alignItems="center" gap={1}>
 				<Text color={theme.textMuted}>v{version}</Text>

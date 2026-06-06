@@ -1,4 +1,4 @@
-# Relay v0.7.2
+# Relay v0.7.3
 
 A terminal-based coding agent with a custom TUI framework, built with Deno and TypeScript.
 

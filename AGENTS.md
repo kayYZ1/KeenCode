@@ -2,28 +2,27 @@
 
 Terminal-based coding agent with custom TUI framework.
 
-## Repository Structure
+## Repository Structure (Deno Workspace)
 
 ```
-├── api/          # LLM provider integrations (see api/AGENTS.md)
-├── core/         # Agent logic and tool execution (see core/AGENTS.md)
-├── agent/        # Application entry point and UI (see agent/AGENTS.md)
-├── tui/          # Terminal UI framework (see tui/AGENTS.md)
-├── scripts/      # Build and version bump scripts
-├── dist/         # Compiled binary output
-├── version.ts    # Version constant (e.g., "0.7.2")
-├── deno.json     # Deno configuration with tasks and import maps
+├── packages/
+│   ├── relay/              # Core agent library (@vvtxn/relay)
+│   │   ├── api/            # LLM provider types and CompletionsProvider
+│   │   └── core/           # Agent loop, runner, tools, sessions, context, display
+│   └── relaycli/           # CLI + TUI frontend (@vvtxn/relaycli)
+│       ├── agent/          # App entry point, config, components, hooks
+│       └── tui/            # Terminal UI framework (JSX runtime, Yoga layout)
+├── scripts/                # Build and version bump scripts
+├── dist/                   # Compiled binary output
+└── deno.json               # Workspace configuration
 ```
 
 ## Package Dependencies
 
 ```
-tui/  (leaf)     api/  (leaf)
-  ↑                ↑
-  │              core/  (depends on api/)
-  │                ↑
-  └─── agent/ ─────┘
-       (depends on tui/, core/, api/)
+packages/relay  (leaf — no internal deps)
+       ↑
+packages/relaycli  (depends on packages/relay + npm:@preact/signals-core + npm:yoga-layout)
 ```
 
 ## Build/Run Commands
@@ -73,12 +72,21 @@ Tag-based releases via GitHub Actions (`.github/workflows/release.yml`):
 
 ## Import Aliases
 
-Use path aliases for cross-package imports:
+Within each package, use `@/` for intra-package imports:
 
 ```typescript
-import { CompletionsProvider } from "@/api/providers/completions.ts";
-import { run } from "@/core/agent.ts";
+// Inside packages/relay/core/agent.ts
+import type { Message } from "@/api/types.ts";
+
+// Inside packages/relaycli/agent/app.tsx
 import { Box, Text } from "@/tui/render/components.tsx";
+```
+
+Cross-package imports from `packages/relaycli` to `packages/relay` use the `@vvtxn/relay/` prefix:
+
+```typescript
+import { runAgentLoop } from "@vvtxn/relay/core/runner.ts";
+import { CompletionsProvider } from "@vvtxn/relay/api/providers/completions.ts";
 ```
 
 ## Code Style Guidelines
@@ -93,10 +101,10 @@ import { Box, Text } from "@/tui/render/components.tsx";
 
 Each sub-package has its own AGENTS.md with package-specific details:
 
-- `api/AGENTS.md` - LLM providers and API types
-- `core/AGENTS.md` - Agent loop, tools, context
-- `agent/AGENTS.md` - Application and UI
-- `tui/AGENTS.md` - Terminal UI framework
+- `packages/relay/api/AGENTS.md` - LLM providers and API types
+- `packages/relay/core/AGENTS.md` - Agent loop, runner, tools, sessions
+- `packages/relaycli/agent/AGENTS.md` - CLI application and TUI components
+- `packages/relaycli/tui/AGENTS.md` - Terminal UI framework
 
 ## Git Conventions
 

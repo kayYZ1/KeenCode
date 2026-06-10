@@ -1,4 +1,4 @@
-import { VERSION } from "../version.ts";
+import { VERSION } from "../packages/relaycli/version.ts";
 
 const part = Deno.args[0] as "patch" | "minor" | "major" | undefined;
 
@@ -24,7 +24,7 @@ switch (part) {
 
 // Update version.ts
 const content = `export const VERSION = "${next}";\n`;
-await Deno.writeTextFile("version.ts", content);
+await Deno.writeTextFile("packages/relaycli/version.ts", content);
 
 // Update README.md
 const readme = await Deno.readTextFile("README.md");

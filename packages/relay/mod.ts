@@ -1,4 +1,58 @@
-// Public API surface for @vvtxn/relay
+/**
+ * @vvtxn/relay — Core agent library.
+ *
+ * Provides the agent loop, tool execution, session management, and display
+ * utilities. Designed to be consumed by any frontend (TUI, HTTP, WebSocket,
+ * mobile) through a callback-based runner interface.
+ *
+ * @example Recommended usage with {@link runAgentLoop}
+ * ```ts
+ * import { runAgentLoop, CompletionsProvider, createToolRegistry, defaultTools } from "@vvtxn/relay";
+ *
+ * const provider = new CompletionsProvider({ apiKey, baseURL: "https://openrouter.ai/api/v1" });
+ * const tools = createToolRegistry(defaultTools);
+ *
+ * await runAgentLoop(messages, {
+ *     provider, tools,
+ *     model: "moonshotai/kimi-k2.6",
+ *     systemPrompt: "You are a coding assistant.",
+ *     signal: abortController.signal,
+ * }, {
+ *     onTextDelta(delta)         { socket.send(JSON.stringify({ type: "text", delta })); },
+ *     onToolCallEnd(id, name, a) { socket.send(JSON.stringify({ type: "tool", id, name, args: a })); },
+ *     onToolResult(id, result)   { socket.send(JSON.stringify({ type: "result", id, ... })); },
+ *     onTurnComplete(msg, trs)   { db.save(msg, trs); },
+ *     onError(err)               { socket.send(JSON.stringify({ type: "error", msg: err.message })); },
+ * });
+ * ```
+ *
+ * @example Raw async generator (when you need full control)
+ * ```ts
+ * import { run } from "@vvtxn/relay";
+ *
+ * for await (const event of run(messages, config)) {
+ *     switch (event.type) {
+ *         case "text_delta":
+ *             // accumulate text
+ *             break;
+ *         case "tool_call_start":
+ *             // track name and id
+ *             break;
+ *         case "tool_result":
+ *             // update output, show diff
+ *             break;
+ *         case "turn_complete":
+ *             // persist to session
+ *             break;
+ *         case "error":
+ *             // handle
+ *             break;
+ *     }
+ * }
+ * ```
+ *
+ * @module
+ */
 
 // Agent loop
 export { run } from "./core/agent.ts";

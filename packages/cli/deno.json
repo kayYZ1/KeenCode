@@ -1,5 +1,5 @@
 {
-	"name": "@vvtxn/relaycli",
+	"name": "@vvtxn/cli",
 	"version": "0.7.3",
 	"exports": {
 		".": "./agent/index.ts"

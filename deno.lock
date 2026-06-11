@@ -38,7 +38,7 @@
       "jsr:@std/path@1"
     ],
     "members": {
-      "packages/relaycli": {
+      "packages/cli": {
         "dependencies": [
           "npm:@preact/signals-core@^1.11.1",
           "npm:yoga-layout@^3.2.1"

@@ -9,7 +9,7 @@ Terminal-based coding agent with custom TUI framework.
 │   ├── relay/              # Core agent library (@vvtxn/relay)
 │   │   ├── api/            # LLM provider types and CompletionsProvider
 │   │   └── core/           # Agent loop, runner, tools, sessions, context, display
-│   └── relaycli/           # CLI + TUI frontend (@vvtxn/relaycli)
+│   └── cli/           # CLI + TUI frontend (@vvtxn/cli)
 │       ├── agent/          # App entry point, config, components, hooks
 │       └── tui/            # Terminal UI framework (JSX runtime, Yoga layout)
 ├── scripts/                # Build and version bump scripts
@@ -22,7 +22,7 @@ Terminal-based coding agent with custom TUI framework.
 ```
 packages/relay  (leaf — no internal deps)
        ↑
-packages/relaycli  (depends on packages/relay + npm:@preact/signals-core + npm:yoga-layout)
+packages/cli  (depends on packages/relay + npm:@preact/signals-core + npm:yoga-layout)
 ```
 
 ## Build/Run Commands
@@ -78,11 +78,11 @@ Within each package, use `@/` for intra-package imports:
 // Inside packages/relay/core/agent.ts
 import type { Message } from "@/api/types.ts";
 
-// Inside packages/relaycli/agent/app.tsx
+// Inside packages/cli/agent/app.tsx
 import { Box, Text } from "@/tui/render/components.tsx";
 ```
 
-Cross-package imports from `packages/relaycli` to `packages/relay` use the `@vvtxn/relay/` prefix:
+Cross-package imports from `packages/cli` to `packages/relay` use the `@vvtxn/relay/` prefix:
 
 ```typescript
 import { runAgentLoop } from "@vvtxn/relay/core/runner.ts";
@@ -103,8 +103,8 @@ Each sub-package has its own AGENTS.md with package-specific details:
 
 - `packages/relay/api/AGENTS.md` - LLM providers and API types
 - `packages/relay/core/AGENTS.md` - Agent loop, runner, tools, sessions
-- `packages/relaycli/agent/AGENTS.md` - CLI application and TUI components
-- `packages/relaycli/tui/AGENTS.md` - Terminal UI framework
+- `packages/cli/agent/AGENTS.md` - CLI application and TUI components
+- `packages/cli/tui/AGENTS.md` - Terminal UI framework
 
 ## Git Conventions
 

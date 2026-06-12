@@ -1,13 +1,16 @@
 # AGENTS.md - Core
 
-Core agent logic: tool execution, context management, and the agent loop.
+Core agent logic: agent loop, runner, tool execution, context management, sessions, and display utilities.
 
 ## Architecture
 
 ```
 core/
-├── index.ts              # Public exports
+├── index.ts              # Internal barrel re-exports (see packages/relay/mod.ts for public API)
 ├── agent.ts              # Agent loop (async generator yielding AgentEvents)
+├── runner.ts             # runAgentLoop() convenience wrapper with callbacks
+├── display.ts            # Display utilities: UIToolCall, parseDiffLines, tool arg/output formatting
+├── paths.ts              # relayDir(), homeDir() helpers
 ├── context.ts            # Context trimming (token estimation, turn-based truncation)
 ├── tools/                # Tool system
 │   ├── index.ts          # Tool exports and defaultTools registry
@@ -35,9 +38,9 @@ core/
 
 ## Key Concepts
 
-### Agent Loop
+### Agent Loop (`agent.ts`)
 
-The `run()` async generator in `agent.ts`:
+The `run()` async generator:
 
 1. Receive user input as messages
 2. Build context (system prompt + history + tools)
@@ -49,6 +52,24 @@ The `run()` async generator in `agent.ts`:
 
 Features: self-reflection every 12 rounds, loop detection (repeated tool calls), automatic retries with exponential
 backoff.
+
+### Agent Runner (`runner.ts`)
+
+The `runAgentLoop()` function wraps `run()` with a callback interface, accumulating tool call args across deltas:
+
+```typescript
+await runAgentLoop(messages, config, {
+    onTextDelta(delta) { ... },
+    onToolCallEnd(id, name, args) { ... },
+    onToolResult(id, result) { ... },
+    onMessageComplete(usage, generationId) { ... },
+    onTurnComplete(assistantMessage, toolResults) { ... },
+    onError(error) { ... },
+});
+```
+
+All callbacks return `void | Promise<void>` and the runner awaits each one, ensuring async work (e.g. session writes)
+completes in order.
 
 ### AgentEvent Types
 
@@ -63,6 +84,17 @@ type AgentEvent =
 	| { type: "turn_complete"; assistantMessage: Message; toolResults: Message[] }
 	| { type: "error"; error: Error };
 ```
+
+### Display Utilities (`display.ts`)
+
+Shared across all clients:
+
+- `UIToolCall` — Display-ready tool call with summarized args and formatted output
+- `createUIToolCall()` — Creates a UIToolCall from tool name and JSON args
+- `summarizeToolArgs()` — Converts JSON args to human-readable summary (path, pattern, command, etc.)
+- `getToolDisplayName()` — Maps internal tool names to display labels (e.g. `read_file` → "read")
+- `getToolDisplayOutput()` — Formats tool output as concise summaries for display
+- `parseDiffLines()` — Parses unified diff into structured `DiffLine[]` (without color assignment)
 
 ### Tool System
 
@@ -91,13 +123,13 @@ Built-in tools (`defaultTools`): `bash` (Run), `read_file` (Read), `write_file` 
 
 `sessions/manager.ts` provides persistent conversation storage:
 
-- Sessions stored as JSON in `~/.relay/sessions/`
+- Sessions stored as JSONL in `~/.relay/sessions/`
 - CRUD operations: create, list, load, save, delete
 - Each session contains message history and metadata
 
 ## Dependencies
 
-- `@/api` - LLM provider types and calls
+- `@/api` - Internal: LLM provider types and calls (within same `packages/relay` package)
 
 ## Task Completion Checklist
 
@@ -117,4 +149,5 @@ If any command fails, fix the issues and re-run until all pass cleanly.
 - `ToolResult.meta.diff` carries unified diff output from `write_file` and `edit_file` for UI rendering
 - `diff.ts` uses `git diff --no-index --no-ext-diff` on temp files to bypass user-configured external diff tools
 - Agent loop is an async generator for streaming updates
+- `runAgentLoop()` is the recommended entry point for all clients; `run()` for custom event handling
 - Context trimming uses heuristic token estimation (~4 chars/token)

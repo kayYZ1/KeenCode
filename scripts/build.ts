@@ -1,4 +1,4 @@
-import { VERSION } from "../version.ts";
+import { VERSION } from "../packages/cli/version.ts";
 
 const decoder = new TextDecoder();
 
@@ -42,7 +42,7 @@ async function build() {
 		"--allow-net",
 		"--output",
 		"dist/relay",
-		"agent/index.ts",
+		"packages/cli/agent/index.ts",
 	]);
 
 	const stat = await Deno.stat("dist/relay");

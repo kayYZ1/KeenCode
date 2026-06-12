@@ -1,5 +1,5 @@
 import { join } from "@std/path/join";
-import { relayDir } from "@/core/paths.ts";
+import { relayDir } from "@vvtxn/relay/core/paths.ts";
 
 interface AuthData {
 	apiKey: string;

@@ -1,0 +1,114 @@
+/**
+ * @vvtxn/relay — Core agent library.
+ *
+ * Provides the agent loop, tool execution, session management, and display
+ * utilities. Designed to be consumed by any frontend (TUI, HTTP, WebSocket,
+ * mobile) through a callback-based runner interface.
+ *
+ * @example Recommended usage with {@link runAgentLoop}
+ * ```ts
+ * import { runAgentLoop, CompletionsProvider, createToolRegistry, defaultTools } from "@vvtxn/relay";
+ *
+ * const provider = new CompletionsProvider({ apiKey, baseURL: "https://openrouter.ai/api/v1" });
+ * const tools = createToolRegistry(defaultTools);
+ *
+ * await runAgentLoop(messages, {
+ *     provider, tools,
+ *     model: "moonshotai/kimi-k2.6",
+ *     systemPrompt: "You are a coding assistant.",
+ *     signal: abortController.signal,
+ * }, {
+ *     onTextDelta(delta)         { socket.send(JSON.stringify({ type: "text", delta })); },
+ *     onToolCallEnd(id, name, a) { socket.send(JSON.stringify({ type: "tool", id, name, args: a })); },
+ *     onToolResult(id, result)   { socket.send(JSON.stringify({ type: "result", id, ... })); },
+ *     onTurnComplete(msg, trs)   { db.save(msg, trs); },
+ *     onError(err)               { socket.send(JSON.stringify({ type: "error", msg: err.message })); },
+ * });
+ * ```
+ *
+ * @example Raw async generator (when you need full control)
+ * ```ts
+ * import { run } from "@vvtxn/relay";
+ *
+ * for await (const event of run(messages, config)) {
+ *     switch (event.type) {
+ *         case "text_delta":
+ *             // accumulate text
+ *             break;
+ *         case "tool_call_start":
+ *             // track name and id
+ *             break;
+ *         case "tool_result":
+ *             // update output, show diff
+ *             break;
+ *         case "turn_complete":
+ *             // persist to session
+ *             break;
+ *         case "error":
+ *             // handle
+ *             break;
+ *     }
+ * }
+ * ```
+ *
+ * @module
+ */
+
+// Agent loop
+export { run } from "./core/agent.ts";
+export type { AgentConfig, AgentEvent } from "./core/agent.ts";
+
+// Agent runner (convenience wrapper with callbacks)
+export { runAgentLoop } from "./core/runner.ts";
+export type { RunnerCallbacks } from "./core/runner.ts";
+
+// Display utilities
+export {
+	createUIToolCall,
+	getToolDisplayName,
+	getToolDisplayOutput,
+	parseDiffLines,
+	summarizeToolArgs,
+	TOOL_DISPLAY_NAMES,
+} from "./core/display.ts";
+export type { DiffLine, UIToolCall } from "./core/display.ts";
+
+// Context trimming
+export { estimateMessageTokens, estimateTokens, trimContext } from "./core/context.ts";
+export type { TrimOptions } from "./core/context.ts";
+
+// Tools
+export { createToolRegistry, defaultTools, defineTool, getDefinitions } from "./core/tools/index.ts";
+export type { Tool, ToolRegistry, ToolResult } from "./core/tools/index.ts";
+
+// Sessions
+export { entriesToMessages, SessionManager, stripAttachedContext } from "./core/sessions/index.ts";
+export { sessionDir, sessionsBaseDir } from "./core/sessions/index.ts";
+export type {
+	Entry,
+	MessageEntry,
+	Session,
+	SessionHeader,
+	SessionSummary,
+	ToolResultEntry,
+} from "./core/sessions/index.ts";
+
+// Paths
+export { homeDir, relayDir } from "./core/paths.ts";
+
+// API types
+export type {
+	CompletionRequest,
+	CompletionResponse,
+	JsonSchema,
+	LLMProvider,
+	Message,
+	ProviderConfig,
+	StreamChunk,
+	ToolCall,
+	ToolDefinition,
+	Usage,
+} from "./api/types.ts";
+
+// API providers
+export { CompletionsProvider } from "./api/providers/completions.ts";

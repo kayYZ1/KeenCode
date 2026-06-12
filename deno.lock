@@ -1,7 +1,6 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@std/assert@*": "1.0.17",
     "jsr:@std/assert@1": "1.0.17",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/path@1": "1.1.4",
@@ -36,9 +35,15 @@
   "workspace": {
     "dependencies": [
       "jsr:@std/assert@1",
-      "jsr:@std/path@1",
-      "npm:@preact/signals-core@^1.11.1",
-      "npm:yoga-layout@^3.2.1"
-    ]
+      "jsr:@std/path@1"
+    ],
+    "members": {
+      "packages/cli": {
+        "dependencies": [
+          "npm:@preact/signals-core@^1.11.1",
+          "npm:yoga-layout@^3.2.1"
+        ]
+      }
+    }
   }
 }
